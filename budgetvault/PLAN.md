@@ -60,23 +60,23 @@
 | FlatList tuning — import review table (stable key, windowing) | ✅ |
 | FlatList tuning — transactions screen (windowing) | ✅ |
 | Category management UI (add / delete user categories in Settings) | ✅ |
-| Skeleton loaders | ⏳ deferred |
-| Multi-account switcher UI | ⏳ deferred |
-| Recurring / subscription detection | ⏳ deferred |
-| Rules transparency UI | ⏳ deferred |
-| Onboarding wizard | ⏳ deferred |
-| Accessibility (a11y) | ⏳ deferred |
-| i18n / locale | ⏳ deferred |
+| Skeleton loaders — transactions, budget, dashboard screens | ✅ |
+| Multi-account switcher — account filter chip on transactions screen | ✅ |
+| Recurring / subscription detection — budget screen "Detected Subscriptions" | ✅ |
+| Rules transparency — category source badge in transaction edit modal | ✅ |
+| Accessibility (a11y) — labels + roles on nav, chips, list rows, modals | ✅ |
+| Onboarding wizard | ⏳ deferred — complex multi-screen flow |
+| i18n / locale | ⏳ deferred — large scope |
 
 ### Road to A+ — CI/CD (Phase 9)
 | Item | Status |
 |---|---|
 | GitHub Actions: typecheck → privacy check → tests → coverage (path-scoped) | ✅ |
 | Node 22, `legacy-peer-deps` for expo-router peer conflict | ✅ |
-| Signed release builds (EAS + Play Console) | ⏳ deferred |
-| On-device rotating error log | ⏳ deferred |
-| Store readiness (screenshots, privacy policy, data-safety form) | ⏳ deferred |
-| `ARCHITECTURE.md` + threat model | ⏳ deferred |
+| On-device rotating error log — SQLite settings table + Settings UI + ErrorBoundary | ✅ |
+| `ARCHITECTURE.md` + threat model | ✅ |
+| Signed release builds (EAS + Play Console) | ⏳ deferred — needs signing keys |
+| Store readiness (screenshots, privacy policy, data-safety form) | ⏳ deferred — needs design assets |
 
 ---
 
@@ -92,19 +92,22 @@
 - 34 new unit tests across `detect`, `projections`, and `categorize/engine` modules
 - Category management UI in Settings (add / delete user categories)
 - FlatList windowing on import review table and transactions screen
+- Multi-account switcher chip on transactions screen (filters by account)
+- Rules transparency: category source badge in transaction edit modal
+- Skeleton loaders on transactions, budget, and dashboard screens
+- Recurring/subscription detection in budget screen
+- Accessibility labels and roles on all major interactive elements
+- On-device rotating error log (SQLite, up to 20 entries, shown in Settings)
+- `ARCHITECTURE.md` — full data flow, schema, dedup invariant, threat model
 
 ---
 
 ## Recommended Next Steps
 
-### Medium priority (feature completeness)
-1. **Multi-account switcher** — schema already supports multiple accounts; just needs a picker UI
-2. **Rules transparency UI** — show which rule matched a category assignment per transaction
-
-### Lower priority (release track)
-
-3. **Signed EAS build** — `eas.json` is configured; just needs signing keys + Play Console upload
-4. **Store assets** — screenshots, privacy policy, data-safety form
-5. **`ARCHITECTURE.md`** — document the data flow, dedup invariant, threat model
-6. **SQLCipher** — encrypt the SQLite database at rest (needs native build toolchain)
-7. **E2E tests** — Maestro or Detox smoke flow for the golden import path
+### Remaining (release track)
+1. **Signed EAS build** — `eas.json` is configured; just needs signing keys + Play Console upload
+2. **Store assets** — screenshots, privacy policy, data-safety form
+3. **SQLCipher** — encrypt the SQLite database at rest (needs native build toolchain)
+4. **E2E tests** — Maestro or Detox smoke flow for the golden import path
+5. **Onboarding wizard** — multi-screen flow for first-run users
+6. **i18n / locale** — multi-language support

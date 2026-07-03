@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { clearErrorLog, getErrorLog, type ErrorEntry } from '../../src/errorLog';
 import { getDb } from '../../src/db';
 import {
   addCategory,
@@ -41,6 +42,7 @@ export default function SettingsScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [errorLog, setErrorLog] = useState<ErrorEntry[]>([]);
 
   useEffect(() => { loadSettings(); }, []);
 
@@ -65,6 +67,7 @@ export default function SettingsScreen() {
       setImportHistory(history);
       setBiometricSupported(bioSupported);
       setBiometricEnabled(bioEnabled === 'true');
+      setErrorLog(await getErrorLog());
     } catch (e) {
       console.error(e);
     }
@@ -374,6 +377,30 @@ export default function SettingsScreen() {
           <Text style={s.addBtnText}>{restoring ? 'Restoring...' : 'Restore from Backup'}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Error Log */}
+      {errorLog.length > 0 && (
+        <>
+          <Text style={s.sectionHeader}>Error Log</Text>
+          <View style={s.card}>
+            {errorLog.slice(0, 5).map((e, i) => (
+              <View key={i} style={[s.listRow, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                <Text style={[s.rowTitle, { fontSize: 13, color: '#e53e3e' }]} numberOfLines={2}>{e.message}</Text>
+                <Text style={s.rowSub}>{e.timestamp.slice(0, 19).replace('T', ' ')}</Text>
+              </View>
+            ))}
+            <TouchableOpacity
+              style={[s.addBtn, { marginTop: 8 }]}
+              onPress={async () => {
+                await clearErrorLog();
+                setErrorLog([]);
+              }}
+            >
+              <Text style={s.addBtnText}>Clear Error Log</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* About */}
       <Text style={s.sectionHeader}>About</Text>

@@ -113,7 +113,7 @@ export default function DashboardScreen() {
       <View style={s.card}>
         <Text style={s.cardTitle}>6-Month Spend Trend</Text>
         {loading ? (
-          <Text style={s.muted}>Loading...</Text>
+          <View style={{ height: 100, backgroundColor: colors.surfaceAlt, borderRadius: 8 }} />
         ) : (
           <TrendChart
             data={trend}
@@ -128,7 +128,19 @@ export default function DashboardScreen() {
       <View style={s.card}>
         <Text style={s.cardTitle}>Top Spending — {month}</Text>
         {loading ? (
-          <Text style={s.muted}>Loading...</Text>
+          <>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <View key={i} style={s.catRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <View style={{ height: 12, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: '45%' }} />
+                    <View style={{ height: 12, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: '20%' }} />
+                  </View>
+                  <View style={[s.barTrack, { backgroundColor: colors.surfaceAlt }]} />
+                </View>
+              </View>
+            ))}
+          </>
         ) : categorySpend.length === 0 ? (
           <Text style={s.muted}>No transactions yet. Import a statement to get started.</Text>
         ) : (

@@ -80,8 +80,18 @@ export async function deleteCategory(
 
 export async function getTransactionsByMonth(
   db: SQLiteDatabase,
-  month: string
+  month: string,
+  accountId?: number
 ): Promise<Transaction[]> {
+  if (accountId !== undefined) {
+    return db.getAllAsync<Transaction>(
+      `SELECT t.*, c.name as category_name FROM transactions t
+       LEFT JOIN categories c ON c.id = t.category_id
+       WHERE strftime('%Y-%m', t.txn_date) = ? AND t.account_id = ?
+       ORDER BY t.txn_date DESC, t.id DESC`,
+      [month, accountId]
+    );
+  }
   return db.getAllAsync<Transaction>(
     `SELECT t.*, c.name as category_name FROM transactions t
      LEFT JOIN categories c ON c.id = t.category_id
@@ -274,6 +284,33 @@ export async function hasImportThisWeek(db: SQLiteDatabase): Promise<boolean> {
      WHERE date(imported_at) >= date('now', '-6 days')`
   );
   return (result?.count ?? 0) > 0;
+}
+
+// --- Recurring / subscription detection ---
+
+export interface RecurringItem {
+  merchant: string;
+  month_count: number;
+  avg_amount: number;
+  txn_count: number;
+}
+
+export async function detectRecurring(db: SQLiteDatabase): Promise<RecurringItem[]> {
+  return db.getAllAsync<RecurringItem>(
+    `SELECT
+       CASE WHEN INSTR(narration, ' ') > 0
+            THEN UPPER(SUBSTR(narration, 1, INSTR(narration, ' ') - 1))
+            ELSE UPPER(narration) END AS merchant,
+       COUNT(DISTINCT strftime('%Y-%m', txn_date)) AS month_count,
+       CAST(AVG(amount) AS INTEGER) AS avg_amount,
+       COUNT(*) AS txn_count
+     FROM transactions
+     WHERE direction = 'debit'
+     GROUP BY merchant
+     HAVING month_count >= 2 AND txn_count >= 2
+     ORDER BY month_count DESC, avg_amount DESC
+     LIMIT 8`
+  );
 }
 
 export async function getImportHistory(

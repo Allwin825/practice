@@ -19,7 +19,9 @@ import {
   getTotalSpendForMonth,
   getUncategorizedCount,
   copyBudgetsFromMonth,
+  detectRecurring,
   upsertBudget,
+  type RecurringItem,
 } from '../../src/db/queries';
 import { computeProjection, generateSuggestions } from '../../src/budget/projections';
 import { useTheme } from '../../src/theme/ThemeContext';
@@ -62,6 +64,7 @@ export default function BudgetScreen() {
   const [totalCredit, setTotalCredit] = useState(0);
   const [uncategorized, setUncategorized] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [recurring, setRecurring] = useState<RecurringItem[]>([]);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editValue, setEditValue] = useState('');
   const [addCatVisible, setAddCatVisible] = useState(false);
@@ -72,17 +75,19 @@ export default function BudgetScreen() {
     setLoading(true);
     try {
       const db = await getDb();
-      const [budgetActuals, totals, cats, unc] = await Promise.all([
+      const [budgetActuals, totals, cats, unc, rec] = await Promise.all([
         getBudgetActualsForMonth(db, month),
         getTotalSpendForMonth(db, month),
         getCategories(db),
         getUncategorizedCount(db),
+        detectRecurring(db),
       ]);
       setActuals(budgetActuals);
       setTotalDebit(totals.total_debit ?? 0);
       setTotalCredit(totals.total_credit ?? 0);
       setCategories(cats);
       setUncategorized(unc);
+      setRecurring(rec);
     } catch (e) {
       console.error(e);
     } finally {
@@ -163,11 +168,11 @@ export default function BudgetScreen() {
     >
       <ScrollView style={s.container} contentContainerStyle={s.content}>
         <View style={s.monthNav}>
-          <TouchableOpacity onPress={() => setMonth(prevMonth(month))} style={s.navBtn}>
+          <TouchableOpacity onPress={() => setMonth(prevMonth(month))} style={s.navBtn} accessibilityLabel="Previous month" accessibilityRole="button">
             <Text style={s.navArrow}>‹</Text>
           </TouchableOpacity>
-          <Text style={s.monthText}>{month}</Text>
-          <TouchableOpacity onPress={() => setMonth(nextMonth(month))} style={s.navBtn}>
+          <Text style={s.monthText} accessibilityLabel={`Month: ${month}`}>{month}</Text>
+          <TouchableOpacity onPress={() => setMonth(nextMonth(month))} style={s.navBtn} accessibilityLabel="Next month" accessibilityRole="button">
             <Text style={s.navArrow}>›</Text>
           </TouchableOpacity>
         </View>
@@ -210,7 +215,17 @@ export default function BudgetScreen() {
 
         {/* Budget rows */}
         {loading ? (
-          <Text style={s.muted}>Loading...</Text>
+          <>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <View key={i} style={{ marginHorizontal: 12, marginBottom: 8, backgroundColor: colors.surface, borderRadius: 12, padding: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <View style={{ height: 14, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: '45%' }} />
+                  <View style={{ height: 14, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: '30%' }} />
+                </View>
+                <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }} />
+              </View>
+            ))}
+          </>
         ) : actuals.length === 0 ? (
           <View style={s.emptyCard}>
             <Text style={s.emptyTitle}>No budgets set for {month}</Text>
@@ -260,6 +275,25 @@ export default function BudgetScreen() {
                   {sg.type === 'on_track' ? '✅' : sg.type === 'overspend' ? '⚠️' : sg.type === 'savings' ? '💡' : '📋'}
                 </Text>
                 <Text style={s.suggestText}>{sg.message}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Recurring / Subscription Detection */}
+        {!loading && recurring.length > 0 && (
+          <View style={s.suggestCard}>
+            <Text style={s.suggestTitle}>Detected Subscriptions</Text>
+            <Text style={[s.muted, { marginBottom: 10, textAlign: 'left' }]}>Merchants that appear in multiple months</Text>
+            {recurring.map((r) => (
+              <View key={r.merchant} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{r.merchant}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                    {r.txn_count} transactions · {r.month_count} months
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.danger }}>~{fmt(r.avg_amount)}/mo</Text>
               </View>
             ))}
           </View>

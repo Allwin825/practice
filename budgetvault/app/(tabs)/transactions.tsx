@@ -10,10 +10,10 @@ import {
   View,
 } from 'react-native';
 import { getDb } from '../../src/db';
-import { getCategories, getTransactionsByMonth, updateTransactionCategory } from '../../src/db/queries';
+import { getAccounts, getCategories, getTransactionsByMonth, updateTransactionCategory } from '../../src/db/queries';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ColorTokens } from '../../src/theme/tokens';
-import type { Category, Transaction } from '../../src/types';
+import type { Account, Category, CategorySource, Transaction } from '../../src/types';
 
 function currentMonth(): string {
   const now = new Date();
@@ -43,25 +43,30 @@ export default function TransactionsScreen() {
   const [month, setMonth] = useState(currentMonth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [search, setSearch] = useState('');
   const [dirFilter, setDirFilter] = useState<Direction>('all');
   const [catFilter, setCatFilter] = useState<number | null>(null);
+  const [accountFilter, setAccountFilter] = useState<number | null>(null);
+  const [accountPickerVisible, setAccountPickerVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editTxn, setEditTxn] = useState<Transaction | null>(null);
   const [catFilterPickerVisible, setCatFilterPickerVisible] = useState(false);
 
-  useEffect(() => { loadData(); }, [month]);
+  useEffect(() => { loadData(); }, [month, accountFilter]);
 
   async function loadData() {
     setLoading(true);
     try {
       const db = await getDb();
-      const [txns, cats] = await Promise.all([
-        getTransactionsByMonth(db, month),
+      const [txns, cats, accs] = await Promise.all([
+        getTransactionsByMonth(db, month, accountFilter ?? undefined),
         getCategories(db),
+        getAccounts(db),
       ]);
       setTransactions(txns);
       setCategories(cats);
+      setAccounts(accs);
     } catch (e) {
       console.error(e);
     } finally {
@@ -98,11 +103,11 @@ export default function TransactionsScreen() {
   return (
     <View style={s.container}>
       <View style={s.monthNav}>
-        <TouchableOpacity onPress={() => setMonth(prevMonth(month))} style={s.navBtn}>
+        <TouchableOpacity onPress={() => setMonth(prevMonth(month))} style={s.navBtn} accessibilityLabel="Previous month" accessibilityRole="button">
           <Text style={s.navArrow}>‹</Text>
         </TouchableOpacity>
-        <Text style={s.monthText}>{month}</Text>
-        <TouchableOpacity onPress={() => setMonth(nextMonth(month))} style={s.navBtn}>
+        <Text style={s.monthText} accessibilityLabel={`Month: ${month}`}>{month}</Text>
+        <TouchableOpacity onPress={() => setMonth(nextMonth(month))} style={s.navBtn} accessibilityLabel="Next month" accessibilityRole="button">
           <Text style={s.navArrow}>›</Text>
         </TouchableOpacity>
       </View>
@@ -135,6 +140,9 @@ export default function TransactionsScreen() {
             key={d}
             style={[s.chip, dirFilter === d && s.chipActive]}
             onPress={() => setDirFilter(d)}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter ${d === 'all' ? 'all directions' : d} transactions`}
+            accessibilityState={{ selected: dirFilter === d }}
           >
             <Text style={[s.chipText, dirFilter === d && s.chipTextActive]}>
               {d === 'all' ? 'All' : d === 'debit' ? 'Debit' : 'Credit'}
@@ -144,15 +152,35 @@ export default function TransactionsScreen() {
         <TouchableOpacity
           style={[s.chip, catFilter !== null && s.chipActive]}
           onPress={() => catFilter !== null ? setCatFilter(null) : setCatFilterPickerVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel={catFilter !== null ? `Clear category filter: ${catName(catFilter)}` : 'Filter by category'}
         >
           <Text style={[s.chipText, catFilter !== null && s.chipTextActive]}>
             {catFilter !== null ? `× ${catName(catFilter)}` : 'Category ▾'}
           </Text>
         </TouchableOpacity>
+        {accounts.length > 1 && (
+          <TouchableOpacity
+            style={[s.chip, accountFilter !== null && s.chipActive]}
+            onPress={() => accountFilter !== null ? setAccountFilter(null) : setAccountPickerVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel={accountFilter !== null ? `Clear account filter` : 'Filter by account'}
+          >
+            <Text style={[s.chipText, accountFilter !== null && s.chipTextActive]}>
+              {accountFilter !== null
+                ? `× ${accounts.find((a) => a.id === accountFilter)?.name ?? 'Account'}`
+                : 'Account ▾'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
-        <View style={s.center}><Text style={s.muted}>Loading…</Text></View>
+        <View style={{ paddingTop: 8 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonTxnRow key={i} colors={colors} />
+          ))}
+        </View>
       ) : transactions.length === 0 ? (
         <View style={s.center}>
           <Text style={s.emptyIcon}>📂</Text>
@@ -182,6 +210,7 @@ export default function TransactionsScreen() {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews
+          accessibilityLabel="Transactions list"
         />
       )}
 
@@ -203,6 +232,15 @@ export default function TransactionsScreen() {
         onClose={() => setCatFilterPickerVisible(false)}
         colors={colors}
       />
+
+      <AccountFilterModal
+        visible={accountPickerVisible}
+        accounts={accounts}
+        selectedId={accountFilter}
+        onSelect={(id) => { setAccountFilter(id); setAccountPickerVisible(false); }}
+        onClose={() => setAccountPickerVisible(false)}
+        colors={colors}
+      />
     </View>
   );
 }
@@ -210,6 +248,7 @@ export default function TransactionsScreen() {
 function TxnRow({
   txn, catName, onPress, colors,
 }: { txn: Transaction; catName: string; onPress: () => void; colors: ColorTokens }) {
+  const sign = txn.direction === 'debit' ? '−' : '+';
   return (
     <TouchableOpacity
       style={{
@@ -220,6 +259,8 @@ function TxnRow({
       }}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${txn.txn_date} ${txn.narration} ${sign}${formatINR(txn.amount)} ${catName}`}
     >
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }} numberOfLines={2}>
@@ -254,8 +295,16 @@ function EditTxnModal({
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={2}>{txn.narration}</Text>
             <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{txn.txn_date} · {formatINR(txn.amount)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>Categorized by: </Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: sourceColor(txn.category_source, colors) }}>
+                {sourceLabel(txn.category_source)}
+              </Text>
+            </View>
           </View>
-          <TouchableOpacity onPress={onClose}><Text style={{ fontSize: 18, color: colors.textMuted, padding: 4 }}>✕</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close" accessibilityRole="button">
+            <Text style={{ fontSize: 18, color: colors.textMuted, padding: 4 }}>✕</Text>
+          </TouchableOpacity>
         </View>
         <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, textTransform: 'uppercase' }}>
           CHANGE CATEGORY
@@ -337,6 +386,85 @@ function CategoryFilterModal({
               </View>
             ) : null
           )}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+function sourceLabel(src: CategorySource): string {
+  switch (src) {
+    case 'rule': return 'Seed rule';
+    case 'learned': return 'Learned rule';
+    case 'manual': return 'Manually set';
+    default: return 'Not categorized';
+  }
+}
+
+function sourceColor(src: CategorySource, colors: ColorTokens): string {
+  switch (src) {
+    case 'rule': return colors.accent;
+    case 'learned': return colors.success;
+    case 'manual': return '#8B5CF6';
+    default: return colors.textMuted;
+  }
+}
+
+function SkeletonTxnRow({ colors }: { colors: ColorTokens }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13, marginHorizontal: 10, marginBottom: 2, backgroundColor: colors.surface, borderRadius: 8 }}>
+      <View style={{ flex: 1 }}>
+        <View style={{ height: 12, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: '68%', marginBottom: 7 }} />
+        <View style={{ height: 10, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: '38%' }} />
+      </View>
+      <View style={{ height: 15, backgroundColor: colors.surfaceAlt, borderRadius: 4, width: 70 }} />
+    </View>
+  );
+}
+
+function AccountFilterModal({
+  visible, accounts, selectedId, onSelect, onClose, colors,
+}: {
+  visible: boolean;
+  accounts: Account[];
+  selectedId: number | null;
+  onSelect: (id: number | null) => void;
+  onClose: () => void;
+  colors: ColorTokens;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={onClose} />
+      <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40, maxHeight: '60%' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Filter by Account</Text>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close" accessibilityRole="button">
+            <Text style={{ fontSize: 18, color: colors.textMuted, padding: 4 }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView>
+          <TouchableOpacity
+            style={{ paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.borderLight, backgroundColor: selectedId === null ? colors.accentLight : undefined }}
+            onPress={() => onSelect(null)}
+            accessibilityRole="button"
+            accessibilityLabel="All accounts"
+          >
+            <Text style={{ fontSize: 15, color: colors.textSecondary }}>All accounts</Text>
+            {selectedId === null && <Text style={{ position: 'absolute', right: 16, top: 13, color: colors.accent, fontWeight: '700' }}>✓</Text>}
+          </TouchableOpacity>
+          {accounts.map((a) => (
+            <TouchableOpacity
+              key={a.id}
+              style={{ paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.borderLight, backgroundColor: selectedId === a.id ? colors.accentLight : undefined }}
+              onPress={() => onSelect(a.id)}
+              accessibilityRole="button"
+              accessibilityLabel={a.name}
+            >
+              <Text style={{ fontSize: 15, color: colors.textSecondary }}>{a.name}</Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>{a.bank} · {a.kind}</Text>
+              {selectedId === a.id && <Text style={{ position: 'absolute', right: 16, top: 13, color: colors.accent, fontWeight: '700' }}>✓</Text>}
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
     </Modal>
