@@ -1,6 +1,7 @@
 {
   "name": "budgetvault",
   "version": "1.0.0",
+  "description": "Privacy-first local budget tracker — zero network calls, all data on-device",
   "main": "expo-router/entry",
   "dependencies": {
     "@react-native/jest-preset": "^0.86.0",

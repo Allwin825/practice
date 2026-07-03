@@ -27,5 +27,5 @@ Privacy-first local budget tracker. Expo React Native + TypeScript + expo-sqlite
 - Bump `SCHEMA_VERSION` in `src/db/schema.ts`
 - Add migration logic in `src/db/migrations.ts` (idempotent)
 
-## Current phase: 0 (Scaffold)
-Next: Phase 1 — Import MVP (CSV generic mapper, dedup tests, review UI, commit)
+## Current phase: Complete (v1.0.0)
+All 4 phases shipped. See PLAN.md for full feature list.
