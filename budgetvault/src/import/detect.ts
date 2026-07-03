@@ -1,8 +1,15 @@
 import { ParsedFileMeta, StatementParser } from '../types';
+import { HdfcCsvParser } from './parsers/hdfcCsv';
+import { IciciBankCsvParser } from './parsers/iciciBankCsv';
+import { SbiCsvParser } from './parsers/sbiCsv';
 import { GenericCsvParser } from './parsers/genericCsv';
 import { XlsxParser } from './parsers/xlsxParser';
 
+// Bank-specific parsers are registered first so they get priority over generic CSV
 const REGISTERED_PARSERS: StatementParser[] = [
+  new HdfcCsvParser(),
+  new IciciBankCsvParser(),
+  new SbiCsvParser(),
   new GenericCsvParser(),
   new XlsxParser(),
 ];

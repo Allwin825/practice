@@ -11,13 +11,15 @@ import {
   View,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getDb } from '../../src/db';
 import { getAccounts, getCategories, upsertAccount } from '../../src/db/queries';
 import { detectParser } from '../../src/import/detect';
 import { buildReviewRows } from '../../src/categorize/engine';
 import { commitReviewRows } from '../../src/import/commit';
 import { saveLearntRule } from '../../src/categorize/engine';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ColorTokens } from '../../src/theme/tokens';
 import type { Account, Category, ReviewRow } from '../../src/types';
 
 type Step = 'idle' | 'picking' | 'parsing' | 'review' | 'committing' | 'done';
@@ -33,6 +35,8 @@ function extractMerchantToken(narration: string): string {
 }
 
 export default function ImportScreen() {
+  const { colors } = useTheme();
+  const s = makeStyles(colors);
   const [step, setStep] = useState<Step>('idle');
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -263,6 +267,7 @@ export default function ImportScreen() {
               onToggleSkip={() => toggleSkip(index)}
               onPickCategory={() => openCategoryPicker(index)}
               onApplyToAll={() => applyToAllMatching(index)}
+              colors={colors}
             />
           )}
         />
@@ -273,7 +278,7 @@ export default function ImportScreen() {
             style={[s.btn, s.btnSecondary]}
             onPress={() => setStep('idle')}
           >
-            <Text style={[s.btnText, { color: '#374151' }]}>Cancel</Text>
+            <Text style={[s.btnText, { color: colors.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.btn, newRows.length === 0 && s.btnDisabled]}
@@ -286,21 +291,21 @@ export default function ImportScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Category picker modal */}
         <CategoryPickerModal
           visible={categoryPickerVisible}
           categories={categories}
           onSelect={setRowCategory}
           onClose={() => setCategoryPickerVisible(false)}
+          colors={colors}
         />
 
-        {/* Account picker modal */}
         <AccountPickerModal
           visible={accountPickerVisible}
           accounts={accounts}
           selectedId={selectedAccountId}
           onSelect={(id) => { setSelectedAccountId(id); setAccountPickerVisible(false); }}
           onClose={() => setAccountPickerVisible(false)}
+          colors={colors}
         />
       </View>
     );
@@ -310,7 +315,7 @@ export default function ImportScreen() {
   if (step === 'parsing' || step === 'committing') {
     return (
       <View style={s.center}>
-        <ActivityIndicator size="large" color="#1A3C5E" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={s.muted}>
           {step === 'parsing' ? 'Parsing file...' : 'Saving transactions...'}
         </Text>
@@ -354,6 +359,7 @@ export default function ImportScreen() {
         selectedId={selectedAccountId}
         onSelect={(id) => { setSelectedAccountId(id); setAccountPickerVisible(false); }}
         onClose={() => setAccountPickerVisible(false)}
+        colors={colors}
       />
     </ScrollView>
   );
@@ -362,7 +368,7 @@ export default function ImportScreen() {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function ReviewRowItem({
-  row, index, catName, onToggleSkip, onPickCategory, onApplyToAll,
+  row, index, catName, onToggleSkip, onPickCategory, onApplyToAll, colors,
 }: {
   row: ReviewRow;
   index: number;
@@ -370,7 +376,9 @@ function ReviewRowItem({
   onToggleSkip: () => void;
   onPickCategory: () => void;
   onApplyToAll: () => void;
+  colors: ColorTokens;
 }) {
+  const s = makeStyles(colors);
   return (
     <View
       style={[
@@ -379,7 +387,6 @@ function ReviewRowItem({
         !row.is_dupe && row.skip && s.skippedRow,
       ]}
     >
-      {/* Left: date + narration + category */}
       <View style={{ flex: 1, marginRight: 8 }}>
         <Text style={s.txnDate}>{row.txn_date}</Text>
         <Text style={s.txnNar} numberOfLines={2}>{row.narration}</Text>
@@ -398,12 +405,11 @@ function ReviewRowItem({
         )}
       </View>
 
-      {/* Right: amount + skip toggle */}
       <View style={{ alignItems: 'flex-end', gap: 6 }}>
         <Text
           style={[
             s.txnAmount,
-            { color: row.direction === 'debit' ? '#EF4444' : '#22C55E' },
+            { color: row.direction === 'debit' ? colors.danger : colors.success },
           ]}
         >
           {row.direction === 'debit' ? '−' : '+'}
@@ -422,13 +428,15 @@ function ReviewRowItem({
 }
 
 function CategoryPickerModal({
-  visible, categories, onSelect, onClose,
+  visible, categories, onSelect, onClose, colors,
 }: {
   visible: boolean;
   categories: Category[];
   onSelect: (id: number | null) => void;
   onClose: () => void;
+  colors: ColorTokens;
 }) {
+  const s = makeStyles(colors);
   const grouped = groupBy(categories, (c) => c.kind);
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -452,7 +460,7 @@ function CategoryPickerModal({
                     style={s.catOption}
                     onPress={() => onSelect(cat.id)}
                   >
-                    <View style={[s.catDot, { backgroundColor: cat.color ?? '#9CA3AF' }]} />
+                    <View style={[s.catDot, { backgroundColor: cat.color ?? colors.textMuted }]} />
                     <Text style={s.catOptionText}>{cat.name}</Text>
                   </TouchableOpacity>
                 ))}
@@ -466,14 +474,16 @@ function CategoryPickerModal({
 }
 
 function AccountPickerModal({
-  visible, accounts, selectedId, onSelect, onClose,
+  visible, accounts, selectedId, onSelect, onClose, colors,
 }: {
   visible: boolean;
   accounts: Account[];
   selectedId: number | null;
   onSelect: (id: number) => void;
   onClose: () => void;
+  colors: ColorTokens;
 }) {
+  const s = makeStyles(colors);
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose} />
@@ -506,92 +516,89 @@ function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
   }, {});
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  idleContent: { alignItems: 'center', padding: 32, paddingTop: 60 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#F9FAFB' },
+function makeStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    idleContent: { alignItems: 'center', padding: 32, paddingTop: 60 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.bg },
 
-  // Import idle
-  importTitle: { fontSize: 22, fontWeight: '800', color: '#1F2937', marginBottom: 8, textAlign: 'center' },
-  muted: { color: '#9CA3AF', fontSize: 14, marginTop: 4, textAlign: 'center', lineHeight: 20 },
+    importTitle: { fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
+    muted: { color: colors.textMuted, fontSize: 14, marginTop: 4, textAlign: 'center', lineHeight: 20 },
 
-  accountBox: { width: '100%', backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 24, borderWidth: 1, borderColor: '#E5E7EB' },
-  accountLabel: { fontSize: 12, color: '#9CA3AF', marginBottom: 6, fontWeight: '600', textTransform: 'uppercase' },
-  accountSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  accountSelectorText: { fontSize: 16, color: '#1F2937', fontWeight: '600' },
-  chevron: { fontSize: 20, color: '#9CA3AF' },
+    accountBox: { width: '100%', backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginTop: 24, borderWidth: 1, borderColor: colors.border },
+    accountLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 6, fontWeight: '600', textTransform: 'uppercase' },
+    accountSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    accountSelectorText: { fontSize: 16, color: colors.text, fontWeight: '600' },
+    chevron: { fontSize: 20, color: colors.textMuted },
 
-  btn: { backgroundColor: '#1A3C5E', borderRadius: 10, paddingHorizontal: 24, paddingVertical: 13, marginTop: 16, alignItems: 'center' },
-  btnLarge: { paddingHorizontal: 48, paddingVertical: 16, marginTop: 24, width: '100%' },
-  btnSecondary: { backgroundColor: '#E5E7EB' },
-  btnDisabled: { backgroundColor: '#9CA3AF' },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    btn: { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 13, marginTop: 16, alignItems: 'center' },
+    btnLarge: { paddingHorizontal: 48, paddingVertical: 16, marginTop: 24, width: '100%' },
+    btnSecondary: { backgroundColor: colors.surfaceAlt },
+    btnDisabled: { backgroundColor: colors.textMuted },
+    btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 
-  // Review header
-  reviewHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
-  },
-  reviewTitle: { fontSize: 16, fontWeight: '700', color: '#1F2937' },
-  reviewSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  acctBtn: { backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, maxWidth: 140 },
-  acctBtnText: { color: '#1A3C5E', fontSize: 13, fontWeight: '600' },
+    reviewHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      padding: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    reviewTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+    reviewSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    acctBtn: { backgroundColor: colors.accentLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, maxWidth: 140 },
+    acctBtnText: { color: colors.accentText, fontSize: 13, fontWeight: '600' },
 
-  // Review row
-  reviewRow: {
-    flexDirection: 'row', padding: 12, borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6', backgroundColor: '#fff',
-  },
-  dupeRow: { backgroundColor: '#F9FAFB', opacity: 0.55 },
-  skippedRow: { opacity: 0.45 },
-  txnDate: { fontSize: 11, color: '#9CA3AF', marginBottom: 2 },
-  txnNar: { fontSize: 13, color: '#374151', marginBottom: 4 },
-  txnAmount: { fontSize: 14, fontWeight: '700' },
+    reviewRow: {
+      flexDirection: 'row', padding: 12, borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight, backgroundColor: colors.surface,
+    },
+    dupeRow: { backgroundColor: colors.surfaceAlt, opacity: 0.55 },
+    skippedRow: { opacity: 0.45 },
+    txnDate: { fontSize: 11, color: colors.textMuted, marginBottom: 2 },
+    txnNar: { fontSize: 13, color: colors.textSecondary, marginBottom: 4 },
+    txnAmount: { fontSize: 14, fontWeight: '700' },
 
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  catChip: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, maxWidth: 140,
-  },
-  catChipText: { fontSize: 12, color: '#1A3C5E', fontWeight: '600', flexShrink: 1 },
-  catChipIcon: { fontSize: 11, color: '#1A3C5E' },
-  applyBtn: { backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  applyBtnText: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
+    catRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    catChip: {
+      flexDirection: 'row', alignItems: 'center', backgroundColor: colors.accentLight,
+      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, maxWidth: 140,
+    },
+    catChipText: { fontSize: 12, color: colors.accentText, fontWeight: '600', flexShrink: 1 },
+    catChipIcon: { fontSize: 11, color: colors.accentText },
+    applyBtn: { backgroundColor: colors.surfaceAlt, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    applyBtnText: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
 
-  dupeBadge: { fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' },
+    dupeBadge: { fontSize: 11, color: colors.textMuted, fontStyle: 'italic' },
 
-  skipToggle: {
-    borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 3,
-  },
-  skipToggleActive: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' },
-  skipToggleText: { fontSize: 12, color: '#9CA3AF' },
-  skipToggleTextActive: { color: '#92400E', fontWeight: '600' },
+    skipToggle: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 6,
+      paddingHorizontal: 10, paddingVertical: 3,
+    },
+    skipToggleActive: { backgroundColor: colors.warningBg, borderColor: colors.warning },
+    skipToggleText: { fontSize: 12, color: colors.textMuted },
+    skipToggleTextActive: { color: colors.warningText, fontWeight: '600' },
 
-  reviewFooter: {
-    flexDirection: 'row', gap: 10, padding: 14,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E5E7EB',
-  },
+    reviewFooter: {
+      flexDirection: 'row', gap: 10, padding: 14,
+      backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border,
+    },
 
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingBottom: 32, maxHeight: '75%',
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#1F2937' },
-  modalClose: { fontSize: 18, color: '#9CA3AF', padding: 4 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+    modalSheet: {
+      backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      paddingBottom: 32, maxHeight: '75%',
+    },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
+    modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    modalClose: { fontSize: 18, color: colors.textMuted, padding: 4 },
 
-  catGroupLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, textTransform: 'uppercase' },
-  catOption: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  catOptionText: { fontSize: 15, color: '#374151' },
-  catDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  selectedOption: { backgroundColor: '#EFF6FF' },
-  accountSubText: { fontSize: 12, color: '#9CA3AF', marginLeft: 'auto' },
+    catGroupLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, textTransform: 'uppercase' },
+    catOption: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+    catOptionText: { fontSize: 15, color: colors.textSecondary },
+    catDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+    selectedOption: { backgroundColor: colors.accentLight },
+    accountSubText: { fontSize: 12, color: colors.textMuted, marginLeft: 'auto' },
 
-  // Done
-  successIcon: { fontSize: 56, color: '#22C55E' },
-  successTitle: { fontSize: 24, fontWeight: '800', color: '#1F2937', marginTop: 8 },
-  successSub: { fontSize: 16, color: '#374151', marginTop: 4 },
-});
+    successIcon: { fontSize: 56, color: colors.success },
+    successTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 8 },
+    successSub: { fontSize: 16, color: colors.textSecondary, marginTop: 4 },
+  });
+}

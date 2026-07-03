@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { getDb } from '../../src/db';
 import { getCategories, getTransactionsByMonth, updateTransactionCategory } from '../../src/db/queries';
-import { invalidateRulesCache } from '../../src/categorize/engine';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ColorTokens } from '../../src/theme/tokens';
 import type { Category, Transaction } from '../../src/types';
 
 function currentMonth(): string {
@@ -38,6 +39,7 @@ function formatINR(n: number): string {
 type Direction = 'all' | 'debit' | 'credit';
 
 export default function TransactionsScreen() {
+  const { colors } = useTheme();
   const [month, setMonth] = useState(currentMonth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -90,9 +92,10 @@ export default function TransactionsScreen() {
     [categories]
   );
 
+  const s = makeStyles(colors);
+
   return (
     <View style={s.container}>
-      {/* Month nav */}
       <View style={s.monthNav}>
         <TouchableOpacity onPress={() => setMonth(prevMonth(month))} style={s.navBtn}>
           <Text style={s.navArrow}>‹</Text>
@@ -103,31 +106,28 @@ export default function TransactionsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Summary strip */}
       <View style={s.summaryStrip}>
         <Text style={s.summaryItem}>
           <Text style={s.summaryLabel}>In </Text>
-          <Text style={{ color: '#22C55E', fontWeight: '700' }}>{formatINR(totalCredit)}</Text>
+          <Text style={{ color: colors.success, fontWeight: '700' }}>{formatINR(totalCredit)}</Text>
         </Text>
         <Text style={s.summaryItem}>
           <Text style={s.summaryLabel}>Out </Text>
-          <Text style={{ color: '#EF4444', fontWeight: '700' }}>{formatINR(totalDebit)}</Text>
+          <Text style={{ color: colors.danger, fontWeight: '700' }}>{formatINR(totalDebit)}</Text>
         </Text>
         <Text style={s.summaryItem}>
           <Text style={s.summaryLabel}>{filtered.length} rows</Text>
         </Text>
       </View>
 
-      {/* Search */}
       <TextInput
         style={s.search}
         placeholder="Search narration..."
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.textMuted}
         value={search}
         onChangeText={setSearch}
       />
 
-      {/* Direction filter chips */}
       <View style={s.chips}>
         {(['all', 'debit', 'credit'] as Direction[]).map((d) => (
           <TouchableOpacity
@@ -165,19 +165,20 @@ export default function TransactionsScreen() {
               txn={item}
               catName={catName(item.category_id)}
               onPress={() => setEditTxn(item)}
+              colors={colors}
             />
           )}
           contentContainerStyle={{ paddingBottom: 24 }}
         />
       )}
 
-      {/* Edit category modal */}
       {editTxn && (
         <EditTxnModal
           txn={editTxn}
           categories={categories}
           onSave={(catId) => handleCategoryChange(editTxn.id, catId)}
           onClose={() => setEditTxn(null)}
+          colors={colors}
         />
       )}
     </View>
@@ -185,15 +186,28 @@ export default function TransactionsScreen() {
 }
 
 function TxnRow({
-  txn, catName, onPress,
-}: { txn: Transaction; catName: string; onPress: () => void }) {
+  txn, catName, onPress, colors,
+}: { txn: Transaction; catName: string; onPress: () => void; colors: ColorTokens }) {
   return (
-    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={{
+        flexDirection: 'row', alignItems: 'center', padding: 13,
+        borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+        backgroundColor: colors.surface,
+        marginHorizontal: 10, marginBottom: 2, borderRadius: 8,
+      }}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={{ flex: 1 }}>
-        <Text style={s.narration} numberOfLines={2}>{txn.narration}</Text>
-        <Text style={s.meta}>{txn.txn_date} · {catName}</Text>
+        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }} numberOfLines={2}>
+          {txn.narration}
+        </Text>
+        <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+          {txn.txn_date} · {catName}
+        </Text>
       </View>
-      <Text style={[s.amount, { color: txn.direction === 'debit' ? '#EF4444' : '#22C55E' }]}>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: txn.direction === 'debit' ? colors.danger : colors.success }}>
         {txn.direction === 'debit' ? '−' : '+'}{formatINR(txn.amount)}
       </Text>
     </TouchableOpacity>
@@ -201,40 +215,50 @@ function TxnRow({
 }
 
 function EditTxnModal({
-  txn, categories, onSave, onClose,
+  txn, categories, onSave, onClose, colors,
 }: {
   txn: Transaction;
   categories: Category[];
   onSave: (catId: number) => void;
   onClose: () => void;
+  colors: ColorTokens;
 }) {
   const grouped = groupBy(categories, (c) => c.kind);
   return (
     <Modal visible animationType="slide" transparent>
-      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose} />
-      <View style={s.modalSheet}>
-        <View style={s.modalHeader}>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={onClose} />
+      <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40, maxHeight: '75%' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <Text style={s.modalTitle} numberOfLines={2}>{txn.narration}</Text>
-            <Text style={s.modalSub}>{txn.txn_date} · {formatINR(txn.amount)}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={2}>{txn.narration}</Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{txn.txn_date} · {formatINR(txn.amount)}</Text>
           </View>
-          <TouchableOpacity onPress={onClose}><Text style={s.modalClose}>✕</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onClose}><Text style={{ fontSize: 18, color: colors.textMuted, padding: 4 }}>✕</Text></TouchableOpacity>
         </View>
-        <Text style={s.catGroupLabel}>CHANGE CATEGORY</Text>
+        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, textTransform: 'uppercase' }}>
+          CHANGE CATEGORY
+        </Text>
         <ScrollView>
           {(['expense', 'income', 'transfer'] as const).map((kind) =>
             (grouped[kind] ?? []).length > 0 ? (
               <View key={kind}>
-                <Text style={s.catGroupLabel}>{kind.toUpperCase()}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, textTransform: 'uppercase' }}>
+                  {kind.toUpperCase()}
+                </Text>
                 {(grouped[kind] ?? []).map((cat) => (
                   <TouchableOpacity
                     key={cat.id}
-                    style={[s.catOption, cat.id === txn.category_id && s.selectedOption]}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center',
+                      paddingHorizontal: 16, paddingVertical: 12,
+                      borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+                      backgroundColor: cat.id === txn.category_id ? colors.accentLight : undefined,
+                    }}
                     onPress={() => onSave(cat.id)}
                   >
-                    <View style={[s.catDot, { backgroundColor: cat.color ?? '#9CA3AF' }]} />
-                    <Text style={s.catOptionText}>{cat.name}</Text>
-                    {cat.id === txn.category_id && <Text style={s.checkmark}>✓</Text>}
+                    <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 10, backgroundColor: cat.color ?? colors.textMuted }} />
+                    <Text style={{ fontSize: 15, color: colors.textSecondary }}>{cat.name}</Text>
+                    {cat.id === txn.category_id && <Text style={{ marginLeft: 'auto', color: colors.accent, fontWeight: '700' }}>✓</Text>}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -255,53 +279,36 @@ function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
   }, {});
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  monthNav: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
-  },
-  navBtn: { padding: 8 },
-  navArrow: { fontSize: 22, color: '#1A3C5E', fontWeight: '700' },
-  monthText: { fontSize: 16, fontWeight: '700', color: '#1F2937' },
-  summaryStrip: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    backgroundColor: '#fff', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
-  },
-  summaryItem: { fontSize: 13 },
-  summaryLabel: { color: '#9CA3AF' },
-  search: {
-    margin: 10, marginBottom: 6, padding: 10, backgroundColor: '#fff', borderRadius: 10,
-    borderWidth: 1, borderColor: '#E5E7EB', fontSize: 14, color: '#1F2937',
-  },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 10, paddingBottom: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  chipActive: { backgroundColor: '#1A3C5E', borderColor: '#1A3C5E' },
-  chipText: { fontSize: 13, color: '#6B7280' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  muted: { color: '#9CA3AF', fontSize: 14 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', padding: 13,
-    borderBottomWidth: 1, borderBottomColor: '#F3F4F6', backgroundColor: '#fff',
-    marginHorizontal: 10, marginBottom: 2, borderRadius: 8,
-  },
-  narration: { fontSize: 13, color: '#374151', fontWeight: '500' },
-  meta: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  amount: { fontSize: 15, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingBottom: 40, maxHeight: '75%',
-  },
-  modalHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 8 },
-  modalTitle: { fontSize: 15, fontWeight: '700', color: '#1F2937' },
-  modalSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  modalClose: { fontSize: 18, color: '#9CA3AF', padding: 4 },
-  catGroupLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, textTransform: 'uppercase' },
-  catOption: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  catOptionText: { fontSize: 15, color: '#374151' },
-  catDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  selectedOption: { backgroundColor: '#EFF6FF' },
-  checkmark: { marginLeft: 'auto', color: '#1A3C5E', fontWeight: '700' },
-});
+function makeStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    monthNav: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      padding: 12, backgroundColor: colors.surface,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    navBtn: { padding: 8 },
+    navArrow: { fontSize: 22, color: colors.accent, fontWeight: '700' },
+    monthText: { fontSize: 16, fontWeight: '700', color: colors.text },
+    summaryStrip: {
+      flexDirection: 'row', justifyContent: 'space-around',
+      backgroundColor: colors.surface, paddingVertical: 8,
+      borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    },
+    summaryItem: { fontSize: 13 },
+    summaryLabel: { color: colors.textMuted },
+    search: {
+      margin: 10, marginBottom: 6, padding: 10,
+      backgroundColor: colors.surface, borderRadius: 10,
+      borderWidth: 1, borderColor: colors.border,
+      fontSize: 14, color: colors.text,
+    },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 10, paddingBottom: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: colors.chipBg, borderWidth: 1, borderColor: colors.border },
+    chipActive: { backgroundColor: colors.chipActiveBg, borderColor: colors.chipActiveBg },
+    chipText: { fontSize: 13, color: colors.textMuted },
+    chipTextActive: { color: colors.chipActiveText, fontWeight: '600' },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    muted: { color: colors.textMuted, fontSize: 14 },
+  });
+}
