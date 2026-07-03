@@ -26,6 +26,7 @@ import {
 import { computeProjection, generateSuggestions } from '../../src/budget/projections';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ColorTokens } from '../../src/theme/tokens';
+import { formatCurrencyWhole, currencySymbol } from '../../src/utils/format';
 import type { BudgetActual, Category } from '../../src/types';
 
 function currentMonth(): string {
@@ -45,9 +46,7 @@ function nextMonth(m: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function fmt(n: number): string {
-  return '₹' + Math.round(n / 100).toLocaleString('en-IN');
-}
+const fmt = formatCurrencyWhole;
 
 interface EditTarget {
   categoryId: number | null;
@@ -322,7 +321,7 @@ export default function BudgetScreen() {
                 autoFocus
                 selectTextOnFocus
               />
-              <Text style={s.editHint}>Enter monthly budget amount (₹)</Text>
+              <Text style={s.editHint}>Enter monthly budget amount ({currencySymbol()})</Text>
               <View style={s.editActions}>
                 <TouchableOpacity
                   style={[s.btn, s.btnSecondary]}

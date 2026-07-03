@@ -35,6 +35,8 @@ export function computeProjection(
   };
 }
 
+import { formatCurrencyWhole } from '../utils/format';
+
 export interface Suggestion {
   type: 'overspend' | 'savings' | 'uncategorized' | 'on_track';
   message: string;
@@ -67,7 +69,7 @@ export function generateSuggestions(
         suggestions.push({
           type: 'overspend',
           categoryName: ba.category_name,
-          message: `${ba.category_name} on pace to exceed budget by ₹${Math.round(proj.overspendAmount / 100).toLocaleString('en-IN')}.`,
+          message: `${ba.category_name} on pace to exceed budget by ${formatCurrencyWhole(proj.overspendAmount)}.`,
         });
       }
     }

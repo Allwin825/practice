@@ -11,6 +11,7 @@ import {
 import { useTheme } from '../../src/theme/ThemeContext';
 import { DonutChart } from '../components/DonutChart';
 import { TrendChart, TrendPoint } from '../components/TrendChart';
+import { formatCurrencyWhole } from '../../src/utils/format';
 import type { BudgetActual, MonthlySpend } from '../../src/types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -20,9 +21,7 @@ function currentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function fmt(n: number): string {
-  return '₹' + Math.round(n / 100).toLocaleString('en-IN');
-}
+const fmt = formatCurrencyWhole;
 
 export default function DashboardScreen() {
   const { colors } = useTheme();

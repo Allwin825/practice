@@ -8,6 +8,7 @@ import { useBiometricLock } from '../src/auth/useBiometricLock';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import { setLocaleConfig } from '../src/utils/format';
 
 function AppShell() {
   const { colors } = useTheme();
@@ -21,6 +22,8 @@ function AppShell() {
         const db = await getDb();
         const onboardingSetting = await getSetting(db, 'onboarding_complete');
         setOnboardingDone(onboardingSetting === 'true');
+        const currencySetting = await getSetting(db, 'currency');
+        if (currencySetting) setLocaleConfig({ currencyCode: currencySetting });
         const bioSetting = await getSetting(db, 'biometric_enabled');
         setBiometricEnabled(bioSetting === 'true');
         const granted = await requestNotificationPermissions();
