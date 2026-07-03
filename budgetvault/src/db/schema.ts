@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS settings (
@@ -50,9 +50,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   txn_date TEXT NOT NULL,
   narration TEXT NOT NULL,
   ref_no TEXT,
-  amount REAL NOT NULL,
+  amount INTEGER NOT NULL,
   direction TEXT NOT NULL,
-  balance_after REAL,
+  balance_after INTEGER,
   category_id INTEGER REFERENCES categories(id),
   category_source TEXT NOT NULL DEFAULT 'uncategorized',
   txn_hash TEXT NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS budgets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   month TEXT NOT NULL,
   category_id INTEGER REFERENCES categories(id),
-  planned_amount REAL NOT NULL,
+  planned_amount INTEGER NOT NULL,
   UNIQUE(month, category_id)
 );
 `;

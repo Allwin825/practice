@@ -46,7 +46,7 @@ function nextMonth(m: string): string {
 }
 
 function fmt(n: number): string {
-  return '₹' + Math.round(n).toLocaleString('en-IN');
+  return '₹' + Math.round(n / 100).toLocaleString('en-IN');
 }
 
 interface EditTarget {
@@ -108,7 +108,7 @@ export default function BudgetScreen() {
 
   function openEdit(categoryId: number | null, categoryName: string, current: number) {
     setEditTarget({ categoryId, categoryName, current });
-    setEditValue(current > 0 ? String(Math.round(current)) : '');
+    setEditValue(current > 0 ? String(Math.round(current / 100)) : '');
   }
 
   async function saveEdit() {
@@ -117,7 +117,7 @@ export default function BudgetScreen() {
     if (amount < 0) { Alert.alert('Invalid amount'); return; }
     try {
       const db = await getDb();
-      await upsertBudget(db, month, editTarget.categoryId, amount);
+      await upsertBudget(db, month, editTarget.categoryId, Math.round(amount * 100));
       setEditTarget(null);
       await loadData();
     } catch (e) {

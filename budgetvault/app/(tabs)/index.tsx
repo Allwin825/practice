@@ -21,7 +21,7 @@ function currentMonth(): string {
 }
 
 function fmt(n: number): string {
-  return '₹' + Math.round(n).toLocaleString('en-IN');
+  return '₹' + Math.round(n / 100).toLocaleString('en-IN');
 }
 
 export default function DashboardScreen() {

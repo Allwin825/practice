@@ -46,7 +46,9 @@ export async function commitReviewRows(
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             accountId, batchId, row.txn_date, row.narration, row.ref_no ?? null,
-            row.amount, row.direction, row.balance_after ?? null,
+            Math.round(row.amount * 100),
+            row.direction,
+            row.balance_after != null ? Math.round(row.balance_after * 100) : null,
             row.suggested_category_id, row.category_source, hash, null,
           ]
         );

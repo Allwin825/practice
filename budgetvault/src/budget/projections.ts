@@ -63,11 +63,11 @@ export function generateSuggestions(
   for (const ba of budgetActuals) {
     if (ba.planned_amount > 0) {
       const proj = computeProjection(ba.planned_amount, ba.actual_amount, month);
-      if (!proj.onTrack && proj.overspendAmount > 100) {
+      if (!proj.onTrack && proj.overspendAmount > 10000) {
         suggestions.push({
           type: 'overspend',
           categoryName: ba.category_name,
-          message: `${ba.category_name} on pace to exceed budget by ₹${Math.round(proj.overspendAmount).toLocaleString('en-IN')}.`,
+          message: `${ba.category_name} on pace to exceed budget by ₹${Math.round(proj.overspendAmount / 100).toLocaleString('en-IN')}.`,
         });
       }
     }

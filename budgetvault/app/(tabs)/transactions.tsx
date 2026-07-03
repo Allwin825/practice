@@ -33,7 +33,7 @@ function nextMonth(m: string): string {
 }
 
 function formatINR(n: number): string {
-  return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  return '₹' + (n / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
 type Direction = 'all' | 'debit' | 'credit';
