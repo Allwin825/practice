@@ -1,24 +1,23 @@
 import { Tabs } from 'expo-router';
 import { ColorValue, Platform } from 'react-native';
-
-const ACTIVE_COLOR = '#1A3C5E';
-const INACTIVE_COLOR = '#9CA3AF';
-const TAB_BG = '#FFFFFF';
+import { useTheme } from '../../src/theme/ThemeContext';
 
 export default function TabLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: ACTIVE_COLOR,
-        tabBarInactiveTintColor: INACTIVE_COLOR,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: TAB_BG,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: colors.border,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           height: Platform.OS === 'ios' ? 84 : 60,
         },
-        headerStyle: { backgroundColor: ACTIVE_COLOR },
+        headerStyle: { backgroundColor: colors.accent },
         headerTintColor: '#FFFFFF',
         headerTitleStyle: { fontWeight: '700' },
       }}
@@ -68,11 +67,6 @@ export default function TabLayout() {
   );
 }
 
-function TabIcon({ name, color }: { name: string; color: ColorValue }) {
-  const icons: Record<string, string> = {
-    home: '⌂', upload: '↑', list: '≡', 'pie-chart': '◑', settings: '⚙',
-  };
-  return (
-    <>{/* RN Text not imported here; real icons added in Phase 2 */}</>
-  );
+function TabIcon({ name: _name, color: _color }: { name: string; color: ColorValue }) {
+  return null;
 }

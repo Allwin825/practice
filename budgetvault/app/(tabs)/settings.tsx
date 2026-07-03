@@ -13,37 +13,50 @@ import {
   requestNotificationPermissions,
   scheduleWeeklyReminder,
 } from '../../src/notifications';
+import { isBiometricAvailable } from '../../src/auth/biometric';
+import { exportData } from '../../src/backup/export';
+import { restoreFromBackup } from '../../src/backup/restore';
+import { useTheme } from '../../src/theme/ThemeContext';
 import type { Account } from '../../src/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = [6, 7, 8, 9, 17, 18, 19, 20, 21];
 
 export default function SettingsScreen() {
+  const { colors, mode, setMode, isDark } = useTheme();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(true);
-  const [reminderDay, setReminderDay] = useState(0); // 0=Sun
+  const [reminderDay, setReminderDay] = useState(0);
   const [reminderHour, setReminderHour] = useState(18);
   const [importHistory, setImportHistory] = useState<
     { id: number; file_name: string | null; imported_at: string; rows_inserted: number; rows_skipped_dupe: number }[]
   >([]);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => { loadSettings(); }, []);
 
   async function loadSettings() {
     try {
       const db = await getDb();
-      const [accs, reminder, day, hour, history] = await Promise.all([
+      const [accs, reminder, day, hour, history, bioEnabled, bioSupported] = await Promise.all([
         getAccounts(db),
         getSetting(db, 'reminder_enabled'),
         getSetting(db, 'reminder_day'),
         getSetting(db, 'reminder_hour'),
         getImportHistory(db, 5),
+        getSetting(db, 'biometric_enabled'),
+        isBiometricAvailable(),
       ]);
       setAccounts(accs);
       setReminderEnabled(reminder !== 'false');
       setReminderDay(parseInt(day ?? '0', 10));
       setReminderHour(parseInt(hour ?? '18', 10));
       setImportHistory(history);
+      setBiometricSupported(bioSupported);
+      setBiometricEnabled(bioEnabled === 'true');
     } catch (e) {
       console.error(e);
     }
@@ -61,7 +74,6 @@ export default function SettingsScreen() {
         await setSetting(db, 'reminder_enabled', 'false');
         return;
       }
-      // weekday for expo-notifications: 1=Sunday
       await scheduleWeeklyReminder(reminderDay === 0 ? 1 : reminderDay + 1, reminderHour, 0);
     } else {
       await cancelWeeklyReminder();
@@ -91,15 +103,104 @@ export default function SettingsScreen() {
     await upsertAccount(db, { name: 'New Account', bank: 'generic_csv', kind: 'bank' });
     const updated = await getAccounts(db);
     setAccounts(updated);
-    Alert.alert('Account Added', 'Account name editing coming in Phase 3.');
+    Alert.alert('Account Added', 'Account name editing coming soon.');
+  }
+
+  async function toggleBiometric(val: boolean) {
+    setBiometricEnabled(val);
+    const db = await getDb();
+    await setSetting(db, 'biometric_enabled', val ? 'true' : 'false');
+  }
+
+  async function handleExport(format: 'json' | 'csv') {
+    setExporting(true);
+    try {
+      const db = await getDb();
+      await exportData(db, format);
+    } catch (e: unknown) {
+      Alert.alert('Export Failed', e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleRestore() {
+    Alert.alert(
+      'Restore from Backup',
+      'This will overwrite all your current data. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setRestoring(true);
+            try {
+              const db = await getDb();
+              const result = await restoreFromBackup(db);
+              const summary = result.tablesRestored
+                .map(t => `${t}: ${result.rowCounts[t]}`)
+                .join(', ');
+              Alert.alert('Restore Complete', `Restored: ${summary}`);
+            } catch (e: unknown) {
+              Alert.alert('Restore Failed', e instanceof Error ? e.message : 'Unknown error');
+            } finally {
+              setRestoring(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   function formatDate(iso: string): string {
     return iso.slice(0, 10);
   }
 
+  const s = makeStyles(colors);
+
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
+      {/* Appearance */}
+      <Text style={s.sectionHeader}>Appearance</Text>
+      <View style={s.card}>
+        <Text style={s.rowTitle}>Theme</Text>
+        <View style={[s.chipRow, { marginTop: 8 }]}>
+          {(['system', 'light', 'dark'] as const).map((m) => (
+            <TouchableOpacity
+              key={m}
+              style={[s.chip, mode === m && s.chipActive]}
+              onPress={() => setMode(m)}
+            >
+              <Text style={[s.chipText, mode === m && s.chipTextActive]}>
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Security */}
+      {biometricSupported && (
+        <>
+          <Text style={s.sectionHeader}>Security</Text>
+          <View style={s.card}>
+            <View style={s.switchRow}>
+              <View>
+                <Text style={s.rowTitle}>Biometric Lock</Text>
+                <Text style={s.rowSub}>Lock app when backgrounded for 10s+</Text>
+              </View>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={toggleBiometric}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                thumbColor="#fff"
+              />
+            </View>
+          </View>
+        </>
+      )}
+
       {/* Accounts */}
       <Text style={s.sectionHeader}>Accounts</Text>
       <View style={s.card}>
@@ -128,7 +229,7 @@ export default function SettingsScreen() {
           <Switch
             value={reminderEnabled}
             onValueChange={toggleReminder}
-            trackColor={{ false: '#E5E7EB', true: '#1A3C5E' }}
+            trackColor={{ false: colors.border, true: colors.accent }}
             thumbColor="#fff"
           />
         </View>
@@ -198,19 +299,28 @@ export default function SettingsScreen() {
       </View>
 
       {/* Backup */}
-      <Text style={s.sectionHeader}>Backup</Text>
+      <Text style={s.sectionHeader}>Backup & Restore</Text>
       <View style={s.card}>
         <TouchableOpacity
           style={s.addBtn}
-          onPress={() => Alert.alert('Coming in Phase 3', 'Export your full database as JSON or CSV.')}
+          onPress={() => handleExport('json')}
+          disabled={exporting}
         >
-          <Text style={s.addBtnText}>Export Data (JSON / CSV)</Text>
+          <Text style={s.addBtnText}>{exporting ? 'Exporting...' : 'Export Data (JSON)'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.addBtn, { marginTop: 8 }]}
-          onPress={() => Alert.alert('Coming in Phase 3', 'Restore from a previously exported backup.')}
+          onPress={() => handleExport('csv')}
+          disabled={exporting}
         >
-          <Text style={s.addBtnText}>Restore from Backup</Text>
+          <Text style={s.addBtnText}>{exporting ? 'Exporting...' : 'Export Transactions (CSV)'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.addBtn, { marginTop: 8 }]}
+          onPress={handleRestore}
+          disabled={restoring}
+        >
+          <Text style={s.addBtnText}>{restoring ? 'Restoring...' : 'Restore from Backup'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -218,35 +328,43 @@ export default function SettingsScreen() {
       <Text style={s.sectionHeader}>About</Text>
       <View style={s.card}>
         <Text style={s.rowTitle}>BudgetVault v1.0.0</Text>
-        <Text style={s.muted}>Privacy-first local budget tracker. Phase 2 — Budget & Dashboard.</Text>
+        <Text style={s.muted}>Privacy-first local budget tracker. Phase 3 — Banks & Polish.</Text>
       </View>
     </ScrollView>
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  content: { padding: 16, paddingBottom: 48 },
-  sectionHeader: {
-    fontSize: 11, fontWeight: '700', color: '#6B7280',
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginBottom: 8, marginTop: 20,
-  },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, elevation: 1 },
-  listRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
-  },
-  rowTitle: { fontSize: 15, color: '#1F2937', fontWeight: '600' },
-  rowSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  rowBadge: { fontSize: 12, color: '#6B7280', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  muted: { color: '#9CA3AF', fontSize: 13, marginTop: 6, lineHeight: 18 },
-  addBtn: { marginTop: 12, padding: 12, backgroundColor: '#EFF6FF', borderRadius: 8, alignItems: 'center' },
-  addBtnText: { color: '#1A3C5E', fontWeight: '700', fontSize: 14 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  chipActive: { backgroundColor: '#1A3C5E', borderColor: '#1A3C5E' },
-  chipText: { fontSize: 13, color: '#6B7280' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-});
+function makeStyles(colors: ReturnType<typeof import('../../src/theme/ThemeContext').useTheme>['colors']) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 16, paddingBottom: 48 },
+    sectionHeader: {
+      fontSize: 11, fontWeight: '700', color: colors.textMuted,
+      textTransform: 'uppercase', letterSpacing: 1,
+      marginBottom: 8, marginTop: 20,
+    },
+    card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, elevation: 1 },
+    listRow: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    },
+    rowTitle: { fontSize: 15, color: colors.text, fontWeight: '600' },
+    rowSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    rowBadge: {
+      fontSize: 12, color: colors.textSecondary, backgroundColor: colors.surfaceAlt,
+      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+    },
+    switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    muted: { color: colors.textMuted, fontSize: 13, marginTop: 6, lineHeight: 18 },
+    addBtn: { marginTop: 12, padding: 12, backgroundColor: colors.accentLight, borderRadius: 8, alignItems: 'center' },
+    addBtnText: { color: colors.accentText, fontWeight: '700', fontSize: 14 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    chip: {
+      paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20,
+      backgroundColor: colors.chipBg, borderWidth: 1, borderColor: colors.border,
+    },
+    chipActive: { backgroundColor: colors.chipActiveBg, borderColor: colors.chipActiveBg },
+    chipText: { fontSize: 13, color: colors.textMuted },
+    chipTextActive: { color: colors.chipActiveText, fontWeight: '600' },
+  });
+}

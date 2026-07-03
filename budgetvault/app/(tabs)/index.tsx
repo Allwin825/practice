@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getDb } from '../../src/db';
 import {
   get6MonthTrend,
@@ -8,6 +8,7 @@ import {
   getTotalSpendForMonth,
   getUncategorizedCount,
 } from '../../src/db/queries';
+import { useTheme } from '../../src/theme/ThemeContext';
 import { DonutChart } from '../components/DonutChart';
 import { TrendChart, TrendPoint } from '../components/TrendChart';
 import type { BudgetActual, MonthlySpend } from '../../src/types';
@@ -24,6 +25,7 @@ function fmt(n: number): string {
 }
 
 export default function DashboardScreen() {
+  const { colors } = useTheme();
   const [month] = useState(currentMonth);
   const [totalDebit, setTotalDebit] = useState(0);
   const [totalCredit, setTotalCredit] = useState(0);
@@ -62,6 +64,8 @@ export default function DashboardScreen() {
   const savingsRate = totalCredit > 0 ? (savings / totalCredit) * 100 : 0;
   const totalBudgeted = budgetActuals.reduce((s, b) => s + b.planned_amount, 0);
 
+  const s = makeStyles(colors);
+
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       <Text style={s.monthLabel}>{month}</Text>
@@ -76,33 +80,31 @@ export default function DashboardScreen() {
           centerSub="spent"
         />
         <View style={s.heroStats}>
-          <StatLine label="Income" value={fmt(totalCredit)} color="#22C55E" />
-          <StatLine label="Spent" value={fmt(totalDebit)} color="#EF4444" />
+          <StatLine label="Income" value={fmt(totalCredit)} color={colors.success} textColor={colors.text} />
+          <StatLine label="Spent" value={fmt(totalDebit)} color={colors.danger} textColor={colors.text} />
           <StatLine
             label="Saved"
             value={fmt(savings)}
             color={savings >= 0 ? '#3B82F6' : '#F97316'}
+            textColor={colors.text}
           />
           <StatLine
             label="Rate"
             value={`${savingsRate.toFixed(1)}%`}
-            color={savingsRate >= 20 ? '#22C55E' : savingsRate >= 10 ? '#EAB308' : '#EF4444'}
+            color={savingsRate >= 20 ? colors.success : savingsRate >= 10 ? colors.warning : colors.danger}
+            textColor={colors.text}
           />
           {totalBudgeted > 0 && (
-            <StatLine
-              label="Budget"
-              value={fmt(totalBudgeted)}
-              color="#6B7280"
-            />
+            <StatLine label="Budget" value={fmt(totalBudgeted)} color={colors.textMuted} textColor={colors.text} />
           )}
         </View>
       </View>
 
       {/* Uncategorized alert */}
       {uncategorized > 0 && (
-        <View style={s.warnCard}>
-          <Text style={s.warnText}>
-            ⚠ {uncategorized} transaction{uncategorized !== 1 ? 's' : ''} need categorization
+        <View style={[s.warnCard, { backgroundColor: colors.warningBg, borderColor: colors.warning }]}>
+          <Text style={[s.warnText, { color: colors.warningText }]}>
+            {uncategorized} transaction{uncategorized !== 1 ? 's' : ''} need categorization
           </Text>
         </View>
       )}
@@ -138,10 +140,10 @@ export default function DashboardScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={s.catLabelRow}>
                       <Text style={s.catName}>{c.category_name ?? 'Uncategorized'}</Text>
-                      <Text style={s.catAmount}>{fmt(c.spent)}</Text>
+                      <Text style={[s.catAmount, { color: colors.danger }]}>{fmt(c.spent)}</Text>
                     </View>
                     <View style={s.barTrack}>
-                      <View style={[s.barFill, { width: `${pct}%` }]} />
+                      <View style={[s.barFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
                     </View>
                   </View>
                 </View>
@@ -164,7 +166,7 @@ export default function DashboardScreen() {
               <View key={String(b.category_id ?? 'inc')} style={s.budgetRow}>
                 <View style={s.catLabelRow}>
                   <Text style={s.catName}>{b.category_name}</Text>
-                  <Text style={[s.catAmount, { color: over ? '#EF4444' : '#374151' }]}>
+                  <Text style={[s.catAmount, { color: over ? colors.danger : colors.textSecondary }]}>
                     {fmt(b.actual_amount)} / {fmt(b.planned_amount)}
                   </Text>
                 </View>
@@ -172,7 +174,7 @@ export default function DashboardScreen() {
                   <View
                     style={[s.barFill, {
                       width: `${pct}%`,
-                      backgroundColor: over ? '#EF4444' : '#1A3C5E',
+                      backgroundColor: over ? colors.danger : colors.accent,
                     }]}
                   />
                 </View>
@@ -185,44 +187,43 @@ export default function DashboardScreen() {
   );
 }
 
-function StatLine({ label, value, color }: { label: string; value: string; color: string }) {
+function StatLine({ label, value, color, textColor }: { label: string; value: string; color: string; textColor: string }) {
   return (
-    <View style={s.statLine}>
-      <Text style={s.statLineLabel}>{label}</Text>
-      <Text style={[s.statLineValue, { color }]}>{value}</Text>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <Text style={{ fontSize: 13, color: textColor }}>{label}</Text>
+      <Text style={{ fontSize: 13, fontWeight: '700', color }}>{value}</Text>
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  content: { padding: 16, paddingBottom: 36 },
-  monthLabel: { fontSize: 17, fontWeight: '700', color: '#1F2937', marginBottom: 12 },
-  heroCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    marginBottom: 12, elevation: 1,
-  },
-  heroStats: { flex: 1, gap: 6 },
-  statLine: { flexDirection: 'row', justifyContent: 'space-between' },
-  statLineLabel: { fontSize: 13, color: '#6B7280' },
-  statLineValue: { fontSize: 13, fontWeight: '700' },
-  warnCard: {
-    backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12,
-    marginBottom: 12, borderWidth: 1, borderColor: '#F59E0B',
-  },
-  warnText: { color: '#92400E', fontWeight: '600', fontSize: 13 },
-  card: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 16,
-    marginBottom: 12, elevation: 1,
-  },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#1F2937', marginBottom: 10 },
-  muted: { color: '#9CA3AF', fontSize: 13 },
-  catRow: { marginBottom: 10 },
-  budgetRow: { marginBottom: 10 },
-  catLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  catName: { fontSize: 13, color: '#374151' },
-  catAmount: { fontSize: 13, fontWeight: '600', color: '#EF4444' },
-  barTrack: { height: 6, backgroundColor: '#F3F4F6', borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: 6, backgroundColor: '#1A3C5E', borderRadius: 3 },
-});
+function makeStyles(colors: ReturnType<typeof import('../../src/theme/ThemeContext').useTheme>['colors']) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 16, paddingBottom: 36 },
+    monthLabel: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 12 },
+    heroCard: {
+      backgroundColor: colors.surface, borderRadius: 16, padding: 16,
+      flexDirection: 'row', alignItems: 'center', gap: 16,
+      marginBottom: 12, elevation: 1,
+    },
+    heroStats: { flex: 1, gap: 6 },
+    warnCard: {
+      borderRadius: 10, padding: 12,
+      marginBottom: 12, borderWidth: 1,
+    },
+    warnText: { fontWeight: '600', fontSize: 13 },
+    card: {
+      backgroundColor: colors.surface, borderRadius: 14, padding: 16,
+      marginBottom: 12, elevation: 1,
+    },
+    cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 10 },
+    muted: { color: colors.textMuted, fontSize: 13 },
+    catRow: { marginBottom: 10 },
+    budgetRow: { marginBottom: 10 },
+    catLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    catName: { fontSize: 13, color: colors.textSecondary },
+    catAmount: { fontSize: 13, fontWeight: '600' },
+    barTrack: { height: 6, backgroundColor: colors.surfaceAlt, borderRadius: 3, overflow: 'hidden' },
+    barFill: { height: 6, borderRadius: 3 },
+  });
+}
