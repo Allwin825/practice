@@ -271,7 +271,7 @@ export default function ImportScreen() {
         {/* Rows */}
         <FlatList
           data={rows}
-          keyExtractor={(_, i) => String(i)}
+          keyExtractor={(item) => item.txn_hash}
           renderItem={({ item, index }) => (
             <ReviewRowItem
               row={item}
@@ -283,6 +283,10 @@ export default function ImportScreen() {
               colors={colors}
             />
           )}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews
         />
 
         {/* Footer */}

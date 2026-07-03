@@ -178,6 +178,10 @@ export default function TransactionsScreen() {
             />
           )}
           contentContainerStyle={{ paddingBottom: 24 }}
+          initialNumToRender={20}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
         />
       )}
 

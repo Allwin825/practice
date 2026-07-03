@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getDb } from '../../src/db';
 import {
+  addCategory,
+  deleteCategory,
   getAccounts,
+  getCategories,
   getImportHistory,
   getSetting,
+  renameCategory,
   setSetting,
   upsertAccount,
 } from '../../src/db/queries';
@@ -17,7 +21,7 @@ import { isBiometricAvailable } from '../../src/auth/biometric';
 import { exportData } from '../../src/backup/export';
 import { restoreFromBackup } from '../../src/backup/restore';
 import { useTheme } from '../../src/theme/ThemeContext';
-import type { Account } from '../../src/types';
+import type { Account, Category } from '../../src/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = [6, 7, 8, 9, 17, 18, 19, 20, 21];
@@ -25,6 +29,8 @@ const HOURS = [6, 7, 8, 9, 17, 18, 19, 20, 21];
 export default function SettingsScreen() {
   const { colors, mode, setMode, isDark } = useTheme();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderDay, setReminderDay] = useState(0);
   const [reminderHour, setReminderHour] = useState(18);
@@ -41,8 +47,9 @@ export default function SettingsScreen() {
   async function loadSettings() {
     try {
       const db = await getDb();
-      const [accs, reminder, day, hour, history, bioEnabled, bioSupported] = await Promise.all([
+      const [accs, cats, reminder, day, hour, history, bioEnabled, bioSupported] = await Promise.all([
         getAccounts(db),
+        getCategories(db),
         getSetting(db, 'reminder_enabled'),
         getSetting(db, 'reminder_day'),
         getSetting(db, 'reminder_hour'),
@@ -51,6 +58,7 @@ export default function SettingsScreen() {
         isBiometricAvailable(),
       ]);
       setAccounts(accs);
+      setCategories(cats);
       setReminderEnabled(reminder !== 'false');
       setReminderDay(parseInt(day ?? '0', 10));
       setReminderHour(parseInt(hour ?? '18', 10));
@@ -221,6 +229,49 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Categories */}
+      <Text style={s.sectionHeader}>Categories</Text>
+      <View style={s.card}>
+        {categories.length === 0 ? (
+          <Text style={s.muted}>No categories yet.</Text>
+        ) : (
+          categories.map((cat) => (
+            <View key={cat.id} style={s.listRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: cat.color ?? '#888', marginRight: 10 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowTitle}>{cat.name}</Text>
+                  <Text style={s.rowSub}>{cat.kind}</Text>
+                </View>
+              </View>
+              {!cat.is_system && (
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert('Delete Category', `Delete "${cat.name}"? Transactions won't be affected.`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete', style: 'destructive',
+                        onPress: async () => {
+                          const db = await getDb();
+                          await deleteCategory(db, cat.id);
+                          setCategories(await getCategories(db));
+                        },
+                      },
+                    ]);
+                  }}
+                  style={{ padding: 8 }}
+                >
+                  <Text style={{ color: '#e53e3e', fontSize: 16, fontWeight: '700' }}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))
+        )}
+        <TouchableOpacity style={s.addBtn} onPress={() => setCategoryModalVisible(true)}>
+          <Text style={s.addBtnText}>+ Add Category</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Reminder */}
       <Text style={s.sectionHeader}>Weekly Reminder</Text>
       <View style={s.card}>
@@ -330,7 +381,97 @@ export default function SettingsScreen() {
         <Text style={s.rowTitle}>BudgetVault v1.0.0</Text>
         <Text style={s.muted}>Privacy-first local budget tracker. Phase 3 — Banks & Polish.</Text>
       </View>
+
+      <AddCategoryModal
+        visible={categoryModalVisible}
+        colors={colors}
+        onClose={() => setCategoryModalVisible(false)}
+        onAdd={async (name, kind) => {
+          const db = await getDb();
+          await addCategory(db, name, kind);
+          setCategories(await getCategories(db));
+          setCategoryModalVisible(false);
+        }}
+      />
     </ScrollView>
+  );
+}
+
+function AddCategoryModal({
+  visible, colors, onClose, onAdd,
+}: {
+  visible: boolean;
+  colors: ReturnType<typeof import('../../src/theme/ThemeContext').useTheme>['colors'];
+  onClose: () => void;
+  onAdd: (name: string, kind: 'expense' | 'income' | 'transfer') => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<'expense' | 'income' | 'transfer'>('expense');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      Alert.alert('Name required', 'Please enter a category name.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await onAdd(trimmed, kind);
+      setName('');
+      setKind('expense');
+    } catch (e: unknown) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not add category.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={onClose} />
+      <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Add Category</Text>
+          <TouchableOpacity onPress={onClose}><Text style={{ fontSize: 18, color: colors.textMuted, padding: 4 }}>✕</Text></TouchableOpacity>
+        </View>
+        <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 4, fontWeight: '600', textTransform: 'uppercase' }}>Name</Text>
+        <TextInput
+          style={{ backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 15, color: colors.text, marginBottom: 16 }}
+          placeholder="e.g. Groceries"
+          placeholderTextColor={colors.textMuted}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+          maxLength={40}
+        />
+        <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 6, fontWeight: '600', textTransform: 'uppercase' }}>Type</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+          {(['expense', 'income', 'transfer'] as const).map((k) => (
+            <TouchableOpacity
+              key={k}
+              style={{
+                flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center',
+                backgroundColor: kind === k ? colors.accent : colors.surfaceAlt,
+                borderWidth: 1, borderColor: kind === k ? colors.accent : colors.border,
+              }}
+              onPress={() => setKind(k)}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: kind === k ? '#fff' : colors.textSecondary }}>
+                {k.charAt(0).toUpperCase() + k.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity
+          style={{ backgroundColor: colors.accent, borderRadius: 10, padding: 14, alignItems: 'center', opacity: saving ? 0.6 : 1 }}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{saving ? 'Saving…' : 'Add Category'}</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
   );
 }
 

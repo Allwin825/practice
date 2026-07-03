@@ -43,6 +43,39 @@ export async function getCategories(db: SQLiteDatabase): Promise<Category[]> {
   return db.getAllAsync<Category>('SELECT * FROM categories ORDER BY kind, name');
 }
 
+export async function addCategory(
+  db: SQLiteDatabase,
+  name: string,
+  kind: 'expense' | 'income' | 'transfer'
+): Promise<number> {
+  const result = await db.runAsync(
+    'INSERT INTO categories (name, kind, is_system) VALUES (?, ?, 0)',
+    [name.trim(), kind]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function renameCategory(
+  db: SQLiteDatabase,
+  id: number,
+  name: string
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE categories SET name = ? WHERE id = ? AND is_system = 0',
+    [name.trim(), id]
+  );
+}
+
+export async function deleteCategory(
+  db: SQLiteDatabase,
+  id: number
+): Promise<void> {
+  await db.runAsync(
+    'DELETE FROM categories WHERE id = ? AND is_system = 0',
+    [id]
+  );
+}
+
 // --- Transactions ---
 
 export async function getTransactionsByMonth(
