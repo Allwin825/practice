@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { CategoryRule, CategorySource, RawTransaction, ReviewRow } from '../types';
-import { computeTxnHash } from '../import/dedup';
+import { computeTxnHash, intraDayKey } from '../import/dedup';
 
 let _rulesCache: CategoryRule[] | null = null;
 
@@ -24,7 +24,6 @@ export function categorize(
   for (const rule of rules) {
     if (upper.includes(rule.pattern.toUpperCase())) {
       const source: CategorySource =
-        rule.source === 'seed' ? 'rule' :
         rule.source === 'learned' ? 'learned' : 'rule';
       return { categoryId: rule.category_id, source };
     }
@@ -38,16 +37,15 @@ export async function buildReviewRows(
   rawTxns: RawTransaction[]
 ): Promise<ReviewRow[]> {
   const rules = await loadRules(db);
-
   const rows: ReviewRow[] = [];
-  const intraDayCounters: Map<string, number> = new Map();
+  const intraDayCounters = new Map<string, number>();
 
   for (const txn of rawTxns) {
-    const baseKey = `${txn.txn_date}|${txn.amount}|${txn.direction}|${txn.narration}|${txn.ref_no ?? ''}|${txn.balance_after ?? ''}`;
-    const ordinal = intraDayCounters.get(baseKey) ?? 0;
-    intraDayCounters.set(baseKey, ordinal + 1);
+    const key = intraDayKey(txn);
+    const ordinal = intraDayCounters.get(key) ?? 0;
+    intraDayCounters.set(key, ordinal + 1);
 
-    const txn_hash = computeTxnHash(accountId, txn, ordinal);
+    const txn_hash = await computeTxnHash(accountId, txn, ordinal);
 
     const existing = await db.getFirstAsync<{ id: number }>(
       'SELECT id FROM transactions WHERE account_id = ? AND txn_hash = ?',
