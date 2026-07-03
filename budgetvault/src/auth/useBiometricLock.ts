@@ -10,7 +10,8 @@ export function useBiometricLock(enabled: boolean): {
   lockState: LockState;
   unlock: () => Promise<void>;
 } {
-  const [lockState, setLockState] = useState<LockState>('unlocked');
+  // Start locked on cold start when biometrics are enabled (fix H-2).
+  const [lockState, setLockState] = useState<LockState>(enabled ? 'locked' : 'unlocked');
   const backgroundedAt = useRef<number | null>(null);
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
@@ -40,6 +41,9 @@ export function useBiometricLock(enabled: boolean): {
       return;
     }
 
+    // Prompt for auth immediately — require auth before first render (fix H-2).
+    unlock();
+
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       const prev = appState.current;
       appState.current = nextState;
@@ -56,7 +60,7 @@ export function useBiometricLock(enabled: boolean): {
     });
 
     return () => subscription.remove();
-  }, [enabled]);
+  }, [enabled, unlock]);
 
   return { lockState, unlock };
 }

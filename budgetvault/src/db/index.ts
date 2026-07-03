@@ -5,8 +5,14 @@ let _db: SQLite.SQLiteDatabase | null = null;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
-  _db = await SQLite.openDatabaseAsync('budgetvault.db');
-  await runMigrations(_db);
+  const db = await SQLite.openDatabaseAsync('budgetvault.db');
+  try {
+    await runMigrations(db);
+  } catch (err) {
+    await db.closeAsync();
+    throw err;
+  }
+  _db = db;
   return _db;
 }
 

@@ -88,6 +88,14 @@ export default function ImportScreen() {
       const ext = (name.split('.').pop() ?? '').toLowerCase();
       const meta = { name, extension: ext, size: 0, uri };
       const parser = detectParser(meta);
+      if (!parser) {
+        Alert.alert(
+          'Unrecognized format',
+          'This file format is not supported. Please use a CSV or XLSX bank statement.'
+        );
+        setStep('idle');
+        return;
+      }
 
       let content: string | ArrayBuffer;
       if (ext === 'xlsx' || ext === 'xls') {

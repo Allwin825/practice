@@ -6,6 +6,12 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA journal_mode = WAL;');
   await db.execAsync('PRAGMA foreign_keys = ON;');
 
+  // Bootstrap the settings table before reading schema_version — without this,
+  // a fresh-install SELECT crashes because the table doesn't exist yet (fix C-1).
+  await db.execAsync(
+    `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);`
+  );
+
   const result = await db.getFirstAsync<{ value: string }>(
     "SELECT value FROM settings WHERE key = 'schema_version'"
   );

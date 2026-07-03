@@ -12,7 +12,6 @@ export async function exportData(db: SQLiteDatabase, format: ExportFormat): Prom
 
   const timestamp = new Date().toISOString().slice(0, 10);
   const fileName = `budgetvault-backup-${timestamp}.${format}`;
-  // Use cacheDirectory so expo-sharing can access it on Android
   const filePath = `${FileSystem.cacheDirectory}${fileName}`;
 
   if (format === 'json') {
@@ -27,11 +26,16 @@ export async function exportData(db: SQLiteDatabase, format: ExportFormat): Prom
     });
   }
 
-  await Sharing.shareAsync(filePath, {
-    mimeType: format === 'json' ? 'application/json' : 'text/csv',
-    dialogTitle: `Export BudgetVault ${format.toUpperCase()}`,
-    UTI: format === 'json' ? 'public.json' : 'public.comma-separated-values-text',
-  });
+  try {
+    await Sharing.shareAsync(filePath, {
+      mimeType: format === 'json' ? 'application/json' : 'text/csv',
+      dialogTitle: `Export BudgetVault ${format.toUpperCase()}`,
+      UTI: format === 'json' ? 'public.json' : 'public.comma-separated-values-text',
+    });
+  } finally {
+    // Always remove the cache copy — plaintext backups must not linger (fix M-1).
+    await FileSystem.deleteAsync(filePath, { idempotent: true }).catch(() => {});
+  }
 }
 
 async function collectAllData(db: SQLiteDatabase): Promise<Record<string, unknown[]>> {
@@ -71,17 +75,24 @@ async function buildTransactionCsv(db: SQLiteDatabase): Promise<string> {
   const lines = rows.map(r =>
     [
       r.txn_date,
-      csvQuote(r.narration),
+      csvQuote(formulaGuard(r.narration)),
       r.amount.toFixed(2),
       r.direction,
       r.balance_after != null ? r.balance_after.toFixed(2) : '',
-      csvQuote(r.ref_no ?? ''),
-      csvQuote(r.category_name ?? ''),
-      csvQuote(r.account_name ?? ''),
-      csvQuote(r.notes ?? ''),
+      csvQuote(formulaGuard(r.ref_no ?? '')),
+      csvQuote(formulaGuard(r.category_name ?? '')),
+      csvQuote(formulaGuard(r.account_name ?? '')),
+      csvQuote(formulaGuard(r.notes ?? '')),
     ].join(',')
   );
   return header + lines.join('\n');
+}
+
+// Prefix cells that start with formula-trigger characters so spreadsheets
+// don't execute them as formulas (fix M-2).
+function formulaGuard(s: string): string {
+  if (/^[=+\-@\t\r]/.test(s)) return `'${s}`;
+  return s;
 }
 
 function csvQuote(s: string): string {

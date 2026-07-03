@@ -18,8 +18,9 @@ export async function commitReviewRows(
   stmtEnd: string | null
 ): Promise<CommitResult> {
   const toInsert = rows.filter((r) => !r.skip && !r.is_dupe);
-  const skipped = rows.length - toInsert.length;
+  const preSkipped = rows.length - toInsert.length;
   let inserted = 0;
+  let runtimeDupes = 0;
   let batchId = 0;
 
   await db.withTransactionAsync(async () => {
@@ -31,7 +32,7 @@ export async function commitReviewRows(
       stmt_end: stmtEnd,
       rows_in_file: rows.length,
       rows_inserted: 0,
-      rows_skipped_dupe: skipped,
+      rows_skipped_dupe: 0,
     });
 
     for (const row of toInsert) {
@@ -43,39 +44,33 @@ export async function commitReviewRows(
               balance_after, category_id, category_source, txn_hash, notes)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            accountId,
-            batchId,
-            row.txn_date,
-            row.narration,
-            row.ref_no ?? null,
-            row.amount,
-            row.direction,
-            row.balance_after ?? null,
-            row.suggested_category_id,
-            row.category_source,
-            hash,
-            null,
+            accountId, batchId, row.txn_date, row.narration, row.ref_no ?? null,
+            row.amount, row.direction, row.balance_after ?? null,
+            row.suggested_category_id, row.category_source, hash, null,
           ]
         );
         inserted++;
-      } catch {
-        // UNIQUE constraint hit — already stored, count as skipped
+      } catch (err: unknown) {
+        // Only swallow UNIQUE constraint violations (genuine dupes found at insert time).
+        // Any other error (disk full, schema mismatch, etc.) aborts the transaction (fix I-1).
+        const isUniqueViolation =
+          err instanceof Error && err.message.includes('UNIQUE constraint failed');
+        if (!isUniqueViolation) throw err;
+        runtimeDupes++;
       }
     }
 
+    const totalSkipped = preSkipped + runtimeDupes;
     await db.runAsync(
-      'UPDATE import_batches SET rows_inserted = ? WHERE id = ?',
-      [inserted, batchId]
+      'UPDATE import_batches SET rows_inserted = ?, rows_skipped_dupe = ? WHERE id = ?',
+      [inserted, totalSkipped, batchId]
     );
 
     if (toInsert.length > 0) {
-      const latestDate = toInsert
-        .map((r) => r.txn_date)
-        .sort()
-        .reverse()[0];
+      const latestDate = toInsert.map((r) => r.txn_date).sort().reverse()[0];
       await updateAccountWatermark(db, accountId, latestDate);
     }
   });
 
-  return { inserted, skipped, batchId };
+  return { inserted, skipped: preSkipped + runtimeDupes, batchId };
 }

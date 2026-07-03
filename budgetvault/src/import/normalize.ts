@@ -2,10 +2,11 @@ import { Direction } from '../types';
 
 // Indian rupee grouping: 1,23,456.78
 export function parseIndianAmount(raw: string): number {
-  // Remove currency symbols and thousands separators but NOT the decimal point
   const cleaned = raw.replace(/[,\s₹Rs]/gi, '').trim();
+  if (!cleaned) return 0;
   const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : Math.abs(num);
+  if (isNaN(num)) throw new Error(`Cannot parse amount: "${raw}"`);
+  return Math.abs(num);
 }
 
 // Handles: DD/MM/YYYY, DD-MM-YYYY, DD-MMM-YY, YYYY-MM-DD, DD MMM YYYY

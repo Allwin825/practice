@@ -14,11 +14,14 @@ const REGISTERED_PARSERS: StatementParser[] = [
   new XlsxParser(),
 ];
 
+// Returns null when no registered parser recognises the file (all scores are 0).
+// Callers must surface an "unrecognised format" error rather than silently
+// falling back to HDFC (fix I-4).
 export function detectParser(
   file: ParsedFileMeta,
   firstBytes?: string
-): StatementParser {
-  let best: StatementParser = REGISTERED_PARSERS[0];
+): StatementParser | null {
+  let best: StatementParser | null = null;
   let bestScore = 0;
 
   for (const parser of REGISTERED_PARSERS) {

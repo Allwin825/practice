@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.budgetvault.app",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#1A3C5E",
         "foregroundImage": "./assets/android-icon-foreground.png",
