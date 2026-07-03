@@ -83,10 +83,15 @@
 ## Current State of the Codebase
 
 - **122 tests passing**, 11 test suites
-- **~67% line coverage** on testable (non-native) `src/` code
+- **67.33% line coverage** (statements 65.45%, branches 59.64%, functions 56.09%) on testable (non-native) `src/` code
 - **CI green** on every push/PR to `main` (typecheck + privacy check + tests + coverage)
-- **2 commits on main** — clean history (`Initial commit` → full app)
+- **Branch `claude/phase-next-tests-and-ux`** — 2 commits ahead of main with Phase 7–8 work
 - Zero network calls in `src/` or `app/` — enforced by CI privacy check
+
+### Recently completed (this branch)
+- 34 new unit tests across `detect`, `projections`, and `categorize/engine` modules
+- Category management UI in Settings (add / delete user categories)
+- FlatList windowing on import review table and transactions screen
 
 ---
 
