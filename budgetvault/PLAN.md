@@ -44,6 +44,9 @@
 | Performance test: 20k SHA-256 hashes < 10s (~280ms actual) | ✅ |
 | Jest config fix (`testMatch` replaces invalid `testPathPattern`) | ✅ |
 | Coverage gate: 40% global lines (native modules correctly excluded) | ✅ |
+| `detect.test.ts` — 9 tests for bank parser auto-detection | ✅ |
+| `projections.test.ts` — 15 tests for `computeProjection` / `generateSuggestions` | ✅ |
+| `categorize.engine.test.ts` — 10 tests for `categorize()` rule engine | ✅ |
 | Component / UI tests (`@testing-library/react-native`) | ⏳ deferred |
 | E2E tests (Maestro / Detox) | ⏳ deferred |
 
@@ -54,54 +57,57 @@
 | Category filter picker modal on transactions screen | ✅ |
 | Distinct empty states: first-run vs filter-mismatch | ✅ |
 | Global `ErrorBoundary` wraps root layout | ✅ |
-| FlatList tuning / pagination for 20k-row review | ⏳ deferred |
-| Skeleton loaders | ⏳ deferred |
-| Multi-account switcher UI | ⏳ deferred |
-| Recurring / subscription detection | ⏳ deferred |
-| Category management UI | ⏳ deferred |
-| Rules transparency UI | ⏳ deferred |
-| Onboarding wizard | ⏳ deferred |
-| Accessibility (a11y) | ⏳ deferred |
-| i18n / locale | ⏳ deferred |
+| FlatList tuning — import review table (stable key, windowing) | ✅ |
+| FlatList tuning — transactions screen (windowing) | ✅ |
+| Category management UI (add / delete user categories in Settings) | ✅ |
+| Skeleton loaders — transactions, budget, dashboard screens | ✅ |
+| Multi-account switcher — account filter chip on transactions screen | ✅ |
+| Recurring / subscription detection — budget screen "Detected Subscriptions" | ✅ |
+| Rules transparency — category source badge in transaction edit modal | ✅ |
+| Accessibility (a11y) — labels + roles on nav, chips, list rows, modals | ✅ |
+| Onboarding wizard | ⏳ deferred — complex multi-screen flow |
+| i18n / locale | ⏳ deferred — large scope |
 
 ### Road to A+ — CI/CD (Phase 9)
 | Item | Status |
 |---|---|
 | GitHub Actions: typecheck → privacy check → tests → coverage (path-scoped) | ✅ |
 | Node 22, `legacy-peer-deps` for expo-router peer conflict | ✅ |
-| Signed release builds (EAS + Play Console) | ⏳ deferred |
-| On-device rotating error log | ⏳ deferred |
-| Store readiness (screenshots, privacy policy, data-safety form) | ⏳ deferred |
-| `ARCHITECTURE.md` + threat model | ⏳ deferred |
+| On-device rotating error log — SQLite settings table + Settings UI + ErrorBoundary | ✅ |
+| `ARCHITECTURE.md` + threat model | ✅ |
+| Signed release builds (EAS + Play Console) | ⏳ deferred — needs signing keys |
+| Store readiness (screenshots, privacy policy, data-safety form) | ⏳ deferred — needs design assets |
 
 ---
 
 ## Current State of the Codebase
 
-- **89 tests passing**, 8 test suites
-- **59% line coverage** on testable (non-native) `src/` code
+- **122 tests passing**, 11 test suites
+- **67.33% line coverage** (statements 65.45%, branches 59.64%, functions 56.09%) on testable (non-native) `src/` code
 - **CI green** on every push/PR to `main` (typecheck + privacy check + tests + coverage)
-- **2 commits on main** — clean history (`Initial commit` → full app)
+- **Branch `claude/phase-next-tests-and-ux`** — 2 commits ahead of main with Phase 7–8 work
 - Zero network calls in `src/` or `app/` — enforced by CI privacy check
+
+### Recently completed (this branch)
+- 34 new unit tests across `detect`, `projections`, and `categorize/engine` modules
+- Category management UI in Settings (add / delete user categories)
+- FlatList windowing on import review table and transactions screen
+- Multi-account switcher chip on transactions screen (filters by account)
+- Rules transparency: category source badge in transaction edit modal
+- Skeleton loaders on transactions, budget, and dashboard screens
+- Recurring/subscription detection in budget screen
+- Accessibility labels and roles on all major interactive elements
+- On-device rotating error log (SQLite, up to 20 entries, shown in Settings)
+- `ARCHITECTURE.md` — full data flow, schema, dedup invariant, threat model
 
 ---
 
 ## Recommended Next Steps
 
-### High priority (quick wins)
-1. **`detect.ts` tests** — `detectParser` is 0% covered; pure TS, easy to unit-test with mock file metadata
-2. **`budget/projections.ts` tests** — pure calculation logic, no native deps, currently 0%
-3. **`categorize/engine.ts` tests** — only 28% covered; core auto-categorisation logic
-
-### Medium priority (feature completeness)
-4. **Category management UI** — users can't edit or add categories from the app yet
-5. **Multi-account switcher** — schema already supports multiple accounts; just needs a UI
-6. **Rules transparency UI** — show which rule matched a category assignment
-7. **FlatList pagination** — review table will be slow at 20k rows without `getItemLayout` + windowing
-
-### Lower priority (release track)
-8. **Signed EAS build** — `eas.json` is configured; just needs signing keys + Play Console upload
-9. **Store assets** — screenshots, privacy policy, data-safety form
-10. **`ARCHITECTURE.md`** — document the data flow, dedup invariant, threat model
-11. **SQLCipher** — encrypt the SQLite database at rest (needs native build toolchain)
-12. **E2E tests** — Maestro or Detox smoke flow for the golden import path
+### Remaining (release track)
+1. **Signed EAS build** — `eas.json` is configured; just needs signing keys + Play Console upload
+2. **Store assets** — screenshots, privacy policy, data-safety form
+3. **SQLCipher** — encrypt the SQLite database at rest (needs native build toolchain)
+4. **E2E tests** — Maestro or Detox smoke flow for the golden import path
+5. **Onboarding wizard** — multi-screen flow for first-run users
+6. **i18n / locale** — multi-language support
