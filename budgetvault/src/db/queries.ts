@@ -202,3 +202,54 @@ export async function setSetting(
     [key, value]
   );
 }
+
+// --- Trend / analytics ---
+
+export interface TrendPoint {
+  month: string;
+  total_debit: number;
+  total_credit: number;
+}
+
+export async function get6MonthTrend(db: SQLiteDatabase): Promise<TrendPoint[]> {
+  return db.getAllAsync<TrendPoint>(
+    `SELECT strftime('%Y-%m', txn_date) AS month,
+            SUM(CASE WHEN direction = 'debit'  THEN amount ELSE 0 END) AS total_debit,
+            SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END) AS total_credit
+     FROM transactions
+     WHERE txn_date >= date('now', '-6 months')
+     GROUP BY month
+     ORDER BY month ASC`
+  );
+}
+
+export async function copyBudgetsFromMonth(
+  db: SQLiteDatabase,
+  fromMonth: string,
+  toMonth: string
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR IGNORE INTO budgets (month, category_id, planned_amount)
+     SELECT ?, category_id, planned_amount FROM budgets WHERE month = ?`,
+    [toMonth, fromMonth]
+  );
+}
+
+export async function hasImportThisWeek(db: SQLiteDatabase): Promise<boolean> {
+  const result = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM import_batches
+     WHERE date(imported_at) >= date('now', '-6 days')`
+  );
+  return (result?.count ?? 0) > 0;
+}
+
+export async function getImportHistory(
+  db: SQLiteDatabase,
+  limit = 10
+): Promise<{ id: number; file_name: string | null; imported_at: string; rows_inserted: number; rows_skipped_dupe: number }[]> {
+  return db.getAllAsync(
+    `SELECT id, file_name, imported_at, rows_inserted, rows_skipped_dupe
+     FROM import_batches ORDER BY imported_at DESC LIMIT ?`,
+    [limit]
+  );
+}
