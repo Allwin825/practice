@@ -4,6 +4,7 @@
 
 import { runMigrations } from '../src/db/migrations';
 import { commitReviewRows } from '../src/import/commit';
+import { SCHEMA_VERSION } from '../src/db/schema';
 import type { ReviewRow } from '../src/types';
 
 jest.mock('../src/db/queries', () => ({
@@ -70,7 +71,7 @@ describe('runMigrations — fresh-install bootstrap (fix 5.1)', () => {
     const db = {
       execAsync: jest.fn(),
       getFirstAsync: jest.fn(async (sql: string) => {
-        if (sql.includes('schema_version')) return { value: '1' }; // already migrated
+        if (sql.includes('schema_version')) return { value: String(SCHEMA_VERSION) }; // already migrated
         return null;
       }),
       runAsync: jest.fn(),

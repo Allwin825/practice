@@ -21,12 +21,13 @@ import { commitReviewRows } from '../../src/import/commit';
 import { saveLearntRule } from '../../src/categorize/engine';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ColorTokens } from '../../src/theme/tokens';
+import { currencySymbol, getLocaleConfig } from '../../src/utils/format';
 import type { Account, Category, ReviewRow } from '../../src/types';
 
 type Step = 'idle' | 'picking' | 'parsing' | 'review' | 'committing' | 'done';
 
 function formatINR(n: number): string {
-  return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  return currencySymbol() + n.toLocaleString(getLocaleConfig().locale, { maximumFractionDigits: 2 });
 }
 
 function extractMerchantToken(narration: string): string {

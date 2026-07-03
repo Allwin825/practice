@@ -26,6 +26,7 @@ import {
 import { computeProjection, generateSuggestions } from '../../src/budget/projections';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ColorTokens } from '../../src/theme/tokens';
+import { formatCurrencyWhole, currencySymbol } from '../../src/utils/format';
 import type { BudgetActual, Category } from '../../src/types';
 
 function currentMonth(): string {
@@ -45,9 +46,7 @@ function nextMonth(m: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function fmt(n: number): string {
-  return '₹' + Math.round(n).toLocaleString('en-IN');
-}
+const fmt = formatCurrencyWhole;
 
 interface EditTarget {
   categoryId: number | null;
@@ -108,7 +107,7 @@ export default function BudgetScreen() {
 
   function openEdit(categoryId: number | null, categoryName: string, current: number) {
     setEditTarget({ categoryId, categoryName, current });
-    setEditValue(current > 0 ? String(Math.round(current)) : '');
+    setEditValue(current > 0 ? String(Math.round(current / 100)) : '');
   }
 
   async function saveEdit() {
@@ -117,7 +116,7 @@ export default function BudgetScreen() {
     if (amount < 0) { Alert.alert('Invalid amount'); return; }
     try {
       const db = await getDb();
-      await upsertBudget(db, month, editTarget.categoryId, amount);
+      await upsertBudget(db, month, editTarget.categoryId, Math.round(amount * 100));
       setEditTarget(null);
       await loadData();
     } catch (e) {
@@ -322,7 +321,7 @@ export default function BudgetScreen() {
                 autoFocus
                 selectTextOnFocus
               />
-              <Text style={s.editHint}>Enter monthly budget amount (₹)</Text>
+              <Text style={s.editHint}>Enter monthly budget amount ({currencySymbol()})</Text>
               <View style={s.editActions}>
                 <TouchableOpacity
                   style={[s.btn, s.btnSecondary]}

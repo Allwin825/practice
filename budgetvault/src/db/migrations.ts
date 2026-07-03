@@ -20,8 +20,25 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   if (currentVersion >= SCHEMA_VERSION) return;
 
   await db.withTransactionAsync(async () => {
-    await db.execAsync(CREATE_TABLES_SQL);
-    await seedInitialData(db);
+    if (currentVersion < 1) {
+      await db.execAsync(CREATE_TABLES_SQL);
+      await seedInitialData(db);
+    }
+
+    if (currentVersion < 2) {
+      // v1→v2: convert REAL rupee amounts to INTEGER paise (multiply × 100).
+      // Fresh-install tables are empty so these UPDATE statements are no-ops.
+      await db.execAsync(
+        'UPDATE transactions SET amount = CAST(ROUND(amount * 100) AS INTEGER)'
+      );
+      await db.execAsync(
+        'UPDATE transactions SET balance_after = CAST(ROUND(balance_after * 100) AS INTEGER) WHERE balance_after IS NOT NULL'
+      );
+      await db.execAsync(
+        'UPDATE budgets SET planned_amount = CAST(ROUND(planned_amount * 100) AS INTEGER)'
+      );
+    }
+
     await db.runAsync(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('schema_version', ?)",
       [String(SCHEMA_VERSION)]

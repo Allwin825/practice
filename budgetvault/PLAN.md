@@ -27,7 +27,8 @@
 | Cold-start biometric — lock initialises to `locked` state immediately | ✅ |
 | Restore column whitelist — unknown keys silently dropped, not interpolated into SQL | ✅ |
 | Export: cache file deleted in `finally`; CSV formula-injection guard | ✅ |
-| Encrypt data at rest (SQLCipher) | ⏳ deferred — needs native toolchain |
+| 5.2 Encryption key layer — 256-bit key in Android Keystore/iOS Keychain via expo-secure-store | ✅ key stored; DB still plaintext |
+| 5.2 Encrypt DB at rest (SQLCipher) — pass key to DB open call | ⏳ blocked — needs native build toolchain (dev client / EAS) |
 
 ### Road to A+ — Data Integrity (Phase 6)
 | Item | Status |
@@ -35,12 +36,14 @@
 | `commit.ts` only catches UNIQUE violations; other errors abort the transaction | ✅ |
 | `parseIndianAmount` throws on non-empty unparseable input | ✅ |
 | `detectParser` returns `null` when all scores are 0; UI shows "unrecognised format" | ✅ |
-| Store amounts as integer paise (schema v2) | ⏳ deferred — requires full schema migration |
+| 6.1 Store amounts as integer paise (schema v2) — migration, commit ×100, display ÷100 | ✅ |
 
 ### Road to A+ — Tests & Quality (Phase 7)
 | Item | Status |
 |---|---|
-| Integration tests: migration bootstrap + commit error propagation | ✅ |
+| Integration tests: migration bootstrap + commit error propagation (mocked DB) | ✅ |
+| 7.1b Real SQLite integration tests via better-sqlite3 — migrations, paise storage, dedup, rollback | ✅ 13 tests |
+| Dedup hash-stability golden test — pins exact SHA-256 for fixture row in rupees | ✅ |
 | Performance test: 20k SHA-256 hashes < 10s (~280ms actual) | ✅ |
 | Jest config fix (`testMatch` replaces invalid `testPathPattern`) | ✅ |
 | Coverage gate: 40% global lines (native modules correctly excluded) | ✅ |
@@ -48,7 +51,7 @@
 | `projections.test.ts` — 15 tests for `computeProjection` / `generateSuggestions` | ✅ |
 | `categorize.engine.test.ts` — 10 tests for `categorize()` rule engine | ✅ |
 | Component / UI tests (`@testing-library/react-native`) | ⏳ deferred |
-| E2E tests (Maestro / Detox) | ⏳ deferred |
+| E2E tests (Maestro / Detox) | ⏳ blocked — needs device/emulator |
 
 ### Road to A+ — UX (Phase 8)
 | Item | Status |

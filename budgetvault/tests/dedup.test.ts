@@ -63,6 +63,16 @@ describe('computeTxnHash', () => {
     const h2 = await computeTxnHash(1, { ...BASE, balance_after: 10000 }, 0);
     expect(h1).not.toBe(h2);
   });
+
+  // Golden-value stability test: pins the exact hash for the BASE fixture.
+  // Payload: "1|2024-01-15|350.00|debit|SWIGGY ORDER|||0"
+  // The amount field uses rupee floats (amount.toFixed(2)), NOT paise.
+  // If this test breaks, dedup for previously-imported rows will silently change,
+  // causing re-imports to insert duplicates instead of being deduped.
+  test('hash is stable — BASE fixture matches known golden value', async () => {
+    const hash = await computeTxnHash(1, BASE, 0);
+    expect(hash).toBe('33afa0e7277b14a2cfd6b95f076c9046d7225d416c0e6f1bcfbeb7306f32e23d');
+  });
 });
 
 describe('normalizeNarration', () => {

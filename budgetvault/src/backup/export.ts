@@ -76,9 +76,9 @@ async function buildTransactionCsv(db: SQLiteDatabase): Promise<string> {
     [
       r.txn_date,
       csvQuote(formulaGuard(r.narration)),
-      r.amount.toFixed(2),
+      (r.amount / 100).toFixed(2),
       r.direction,
-      r.balance_after != null ? r.balance_after.toFixed(2) : '',
+      r.balance_after != null ? (r.balance_after / 100).toFixed(2) : '',
       csvQuote(formulaGuard(r.ref_no ?? '')),
       csvQuote(formulaGuard(r.category_name ?? '')),
       csvQuote(formulaGuard(r.account_name ?? '')),

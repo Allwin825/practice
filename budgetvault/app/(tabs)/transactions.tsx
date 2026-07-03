@@ -13,6 +13,7 @@ import { getDb } from '../../src/db';
 import { getAccounts, getCategories, getTransactionsByMonth, updateTransactionCategory } from '../../src/db/queries';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ColorTokens } from '../../src/theme/tokens';
+import { formatCurrency, formatDate } from '../../src/utils/format';
 import type { Account, Category, CategorySource, Transaction } from '../../src/types';
 
 function currentMonth(): string {
@@ -32,9 +33,7 @@ function nextMonth(m: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function formatINR(n: number): string {
-  return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-}
+const formatINR = formatCurrency;
 
 type Direction = 'all' | 'debit' | 'credit';
 
@@ -260,14 +259,14 @@ function TxnRow({
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`${txn.txn_date} ${txn.narration} ${sign}${formatINR(txn.amount)} ${catName}`}
+      accessibilityLabel={`${formatDate(txn.txn_date)} ${txn.narration} ${sign}${formatINR(txn.amount)} ${catName}`}
     >
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }} numberOfLines={2}>
           {txn.narration}
         </Text>
         <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
-          {txn.txn_date} · {catName}
+          {formatDate(txn.txn_date)} · {catName}
         </Text>
       </View>
       <Text style={{ fontSize: 15, fontWeight: '700', color: txn.direction === 'debit' ? colors.danger : colors.success }}>
@@ -294,7 +293,7 @@ function EditTxnModal({
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 8 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={2}>{txn.narration}</Text>
-            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{txn.txn_date} · {formatINR(txn.amount)}</Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{formatDate(txn.txn_date)} · {formatINR(txn.amount)}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
               <Text style={{ fontSize: 11, color: colors.textMuted }}>Categorized by: </Text>
               <Text style={{ fontSize: 11, fontWeight: '600', color: sourceColor(txn.category_source, colors) }}>
