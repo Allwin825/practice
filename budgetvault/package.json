@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@react-native/jest-preset": "^0.86.0",
     "expo": "~57.0.2",
     "expo-crypto": "^57.0.0",
     "expo-document-picker": "^57.0.0",
@@ -34,11 +35,13 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check-privacy": "bash scripts/check-privacy.sh"
   },
   "jest": {
     "preset": "jest-expo",
     "testPathPattern": "tests/",
+    "setupFilesAfterEnv": ["./tests/setup.ts"],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)"
     ]
