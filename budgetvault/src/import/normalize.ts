@@ -2,7 +2,8 @@ import { Direction } from '../types';
 
 // Indian rupee grouping: 1,23,456.78
 export function parseIndianAmount(raw: string): number {
-  const cleaned = raw.replace(/[, ₹Rs.]/gi, '').trim();
+  // Remove currency symbols and thousands separators but NOT the decimal point
+  const cleaned = raw.replace(/[,\s₹Rs]/gi, '').trim();
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : Math.abs(num);
 }
