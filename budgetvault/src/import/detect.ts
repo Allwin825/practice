@@ -1,15 +1,17 @@
 import { ParsedFileMeta, StatementParser } from '../types';
 import { GenericCsvParser } from './parsers/genericCsv';
+import { XlsxParser } from './parsers/xlsxParser';
 
 const REGISTERED_PARSERS: StatementParser[] = [
   new GenericCsvParser(),
+  new XlsxParser(),
 ];
 
 export function detectParser(
   file: ParsedFileMeta,
   firstBytes?: string
 ): StatementParser {
-  let best: StatementParser = new GenericCsvParser();
+  let best: StatementParser = REGISTERED_PARSERS[0];
   let bestScore = 0;
 
   for (const parser of REGISTERED_PARSERS) {

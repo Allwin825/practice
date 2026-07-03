@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { ReviewRow } from '../types';
-import { computeTxnHashAsync } from './dedup';
+import { computeTxnHash } from './dedup';
 import { updateAccountWatermark, insertBatch } from '../db/queries';
 
 export interface CommitResult {
@@ -35,7 +35,7 @@ export async function commitReviewRows(
     });
 
     for (const row of toInsert) {
-      const hash = await computeTxnHashAsync(accountId, row, row.intra_day_ordinal);
+      const hash = await computeTxnHash(accountId, row, row.intra_day_ordinal);
       try {
         await db.runAsync(
           `INSERT INTO transactions
@@ -59,7 +59,7 @@ export async function commitReviewRows(
         );
         inserted++;
       } catch {
-        // UNIQUE constraint → already stored, count as skipped
+        // UNIQUE constraint hit — already stored, count as skipped
       }
     }
 

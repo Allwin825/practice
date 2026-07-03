@@ -1,14 +1,11 @@
 import * as Crypto from 'expo-crypto';
 import { RawTransaction } from '../types';
 
-function normalizeNarration(raw: string): string {
-  return raw
-    .toUpperCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+export function normalizeNarration(raw: string): string {
+  return raw.toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
-export function computeTxnHash(
+function buildPayload(
   accountId: number,
   txn: RawTransaction,
   intraDayOrdinal: number
@@ -25,20 +22,22 @@ export function computeTxnHash(
       : '',
     String(intraDayOrdinal),
   ];
-  const payload = parts.join('|');
-  return Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    payload
-  ) as unknown as string;
+  return parts.join('|');
 }
 
-export async function computeTxnHashAsync(
+export async function computeTxnHash(
   accountId: number,
   txn: RawTransaction,
   intraDayOrdinal: number
 ): Promise<string> {
-  const parts = [
-    String(accountId),
+  return Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    buildPayload(accountId, txn, intraDayOrdinal)
+  );
+}
+
+export function intraDayKey(txn: RawTransaction): string {
+  return [
     txn.txn_date,
     txn.amount.toFixed(2),
     txn.direction,
@@ -47,8 +46,5 @@ export async function computeTxnHashAsync(
     txn.balance_after !== undefined && txn.balance_after !== null
       ? txn.balance_after.toFixed(2)
       : '',
-    String(intraDayOrdinal),
-  ];
-  const payload = parts.join('|');
-  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, payload);
+  ].join('|');
 }
