@@ -15,7 +15,8 @@ export async function commitReviewRows(
   rows: ReviewRow[],
   fileName: string | null,
   stmtStart: string | null,
-  stmtEnd: string | null
+  stmtEnd: string | null,
+  onProgress?: (committed: number, total: number) => void
 ): Promise<CommitResult> {
   const toInsert = rows.filter((r) => !r.skip && !r.is_dupe);
   const preSkipped = rows.length - toInsert.length;
@@ -50,6 +51,7 @@ export async function commitReviewRows(
           ]
         );
         inserted++;
+        onProgress?.(inserted + runtimeDupes, toInsert.length);
       } catch (err: unknown) {
         // Only swallow UNIQUE constraint violations (genuine dupes found at insert time).
         // Any other error (disk full, schema mismatch, etc.) aborts the transaction (fix I-1).
@@ -57,6 +59,7 @@ export async function commitReviewRows(
           err instanceof Error && err.message.includes('UNIQUE constraint failed');
         if (!isUniqueViolation) throw err;
         runtimeDupes++;
+        onProgress?.(inserted + runtimeDupes, toInsert.length);
       }
     }
 

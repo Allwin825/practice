@@ -6,6 +6,7 @@ import { getSetting } from '../src/db/queries';
 import { requestNotificationPermissions, syncReminderFromSettings } from '../src/notifications';
 import { useBiometricLock } from '../src/auth/useBiometricLock';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function AppShell() {
   const { colors } = useTheme();
@@ -56,9 +57,11 @@ function AppShell() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AppShell />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppShell />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

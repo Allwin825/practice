@@ -28,8 +28,31 @@ See full plan in the original prompt. This file tracks phase status.
 ## Phase 7 — Test & Quality Infrastructure (Road to A+)
 
 - [x] **7.1 Integration tests**: `tests/db.integration.test.ts` covers migration bootstrap ordering (fix 5.1) and commit error-propagation behaviour (fix 6.2)
-- [ ] **7.2 Component/UI tests**: `@testing-library/react-native` — not yet
-- [ ] **7.3 E2E**: Maestro/Detox smoke flow — not yet
-- [ ] **7.4 Real performance test (T-1)**: Actual device benchmark with sequential inserts — not yet
+- [ ] **7.2 Component/UI tests**: `@testing-library/react-native` — deferred
+- [ ] **7.3 E2E**: Maestro/Detox smoke flow — deferred
+- [x] **7.4 Real performance test (T-1)**: `tests/performance.test.ts` — 20k sequential SHA-256 hashes via real Node.js crypto; asserts < 10s (actual: ~310ms); also tests uniqueness and determinism
 - [x] **7.5 Fix Jest config (T-2)**: Replaced invalid `testPathPattern` with `testMatch` in `package.json`
 - [x] **7.6 Coverage gate**: Added `coverageThreshold` (≥ 80% lines on `src/`) and `collectCoverageFrom` to Jest config
+
+## Phase 8 — UX, Responsiveness & Feature Completeness (Road to A+)
+
+- [x] **8.1 Import progress bar**: `commitReviewRows` accepts `onProgress(done, total)` callback; import screen shows animated progress bar with count during large commits
+- [ ] **8.2 FlatList tuning**: `getItemLayout`, `keyExtractor`, pagination for 20k row review — deferred
+- [ ] **8.3 Skeleton loaders**: deferred
+- [x] **8.4 Category filter picker**: transactions screen "Category" chip now opens a full category picker modal (was previously a no-op clear-only chip); distinct empty states for "no transactions" vs "no filter results"
+- [ ] **8.5 Multi-account UI**: schema supports it; switcher UI deferred
+- [ ] **8.6 Recurring/subscription detection**: deferred
+- [ ] **8.7 Category management UI**: deferred
+- [ ] **8.8 Rules transparency UI**: deferred
+- [ ] **8.9 Onboarding wizard**: dashboard already guides to import; full wizard deferred
+- [ ] **8.10 Accessibility**: deferred
+- [ ] **8.11 i18n/locale**: deferred
+- [x] **8.12 Empty/error states**: global `ErrorBoundary` wraps root layout; transactions screen has distinct "no data" vs "no filter results" states with icons and copy
+
+## Phase 9 — Release Engineering & Operations (Road to A+)
+
+- [x] **9.1 CI/CD**: `.github/workflows/ci.yml` — runs typecheck → privacy check → unit/integration tests → coverage on every push/PR to main; path-scoped so non-budgetvault changes are skipped
+- [ ] **9.2 Signed release builds**: EAS config exists (`eas.json`); signing + Play Console upload — deferred
+- [ ] **9.3 Local-only observability**: on-device rotating error log — deferred
+- [ ] **9.4 Store readiness**: screenshots, privacy policy, data-safety form — deferred
+- [ ] **9.5 Docs**: `ARCHITECTURE.md` + threat model — deferred

@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -36,6 +37,7 @@ function extractMerchantToken(narration: string): string {
 
 export default function ImportScreen() {
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const s = makeStyles(colors);
   const [step, setStep] = useState<Step>('idle');
   const [rows, setRows] = useState<ReviewRow[]>([]);
@@ -47,6 +49,7 @@ export default function ImportScreen() {
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [pickerRowIndex, setPickerRowIndex] = useState<number | null>(null);
   const [accountPickerVisible, setAccountPickerVisible] = useState(false);
+  const [commitProgress, setCommitProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     if (step === 'idle') loadMeta();
@@ -149,9 +152,11 @@ export default function ImportScreen() {
     try {
       const db = await getDb();
       const dates = rows.filter((r) => !r.skip && !r.is_dupe).map((r) => r.txn_date).sort();
+      setCommitProgress({ done: 0, total: rows.filter(r => !r.skip && !r.is_dupe).length });
       const res = await commitReviewRows(
         db, selectedAccountId, rows, fileName,
-        dates[0] ?? null, dates[dates.length - 1] ?? null
+        dates[0] ?? null, dates[dates.length - 1] ?? null,
+        (done, total) => setCommitProgress({ done, total })
       );
 
       // Offer to save learned rules for manually-changed categories
@@ -321,12 +326,25 @@ export default function ImportScreen() {
 
   // ── Loading screens ──────────────────────────────────────────────────────────
   if (step === 'parsing' || step === 'committing') {
+    const pct = commitProgress && commitProgress.total > 0
+      ? commitProgress.done / commitProgress.total
+      : 0;
     return (
       <View style={s.center}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Text style={s.muted}>
-          {step === 'parsing' ? 'Parsing file...' : 'Saving transactions...'}
+          {step === 'parsing' ? 'Parsing file…' : 'Saving transactions…'}
         </Text>
+        {step === 'committing' && commitProgress && commitProgress.total > 0 && (
+          <View style={{ marginTop: 20, width: screenWidth * 0.7 }}>
+            <View style={{ height: 6, backgroundColor: colors.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+              <View style={{ height: 6, width: `${Math.round(pct * 100)}%`, backgroundColor: colors.accent, borderRadius: 3 }} />
+            </View>
+            <Text style={[s.muted, { textAlign: 'center', marginTop: 6 }]}>
+              {commitProgress.done} / {commitProgress.total}
+            </Text>
+          </View>
+        )}
       </View>
     );
   }
