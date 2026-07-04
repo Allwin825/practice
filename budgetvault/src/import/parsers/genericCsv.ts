@@ -128,12 +128,21 @@ const AMOUNT_KEYWORDS = ['amount', 'txn amount'];
 const BALANCE_KEYWORDS = ['balance', 'running balance', 'closing balance'];
 const REF_KEYWORDS = ['ref', 'ref no', 'reference', 'chq no', 'cheque no', 'utr'];
 
+// Whole-word / boundary match so short abbreviations like 'cr' and 'dr' don't
+// match inside longer words (e.g. 'cr' inside 'des(cr)iption', which used to
+// mis-map the Credit column onto the Description column and drop every row).
+function headerMatches(header: string, keyword: string): boolean {
+  if (header === keyword) return true;
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(header);
+}
+
 function autoDetectMapping(headerLine: string): ColumnMapping | null {
   const headers = headerLine.split(',').map((h) => h.trim().toLowerCase().replace(/['"]/g, ''));
   const mapping: Partial<ColumnMapping> = {};
 
   const find = (keywords: string[]) =>
-    headers.findIndex((h) => keywords.some((k) => h.includes(k)));
+    headers.findIndex((h) => keywords.some((k) => headerMatches(h, k)));
 
   const dateIdx = find(DATE_KEYWORDS);
   const narIdx = find(NARRATION_KEYWORDS);

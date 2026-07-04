@@ -205,3 +205,29 @@ describe('Indian amount edge cases', () => {
     expect(rows).toHaveLength(0);
   });
 });
+
+describe('GenericCsvParser column auto-detection', () => {
+  // Regression: the "Description" header contains the substring "cr", which used
+  // to mis-map the Credit column onto Description and drop every row.
+  const GENERIC_CSV = `Date,Description,Channel,Ref No,Debit,Credit,Balance
+01-01-2026,NEFT Credit - FREELANCE PROJECT,NEFT,N000400001,0.0,885.7,85885.7
+01-01-2026,UPI Payment - Zomato,UPI,U000400002,181.63,0.0,85704.07
+`;
+
+  test('parses both credit and debit rows with a Description/Debit/Credit header', async () => {
+    const parser = new GenericCsvParser();
+    const rows = await parser.parse(GENERIC_CSV, mockMeta('statement.csv'));
+    expect(rows).toHaveLength(2);
+
+    const credit = rows[0];
+    expect(credit.direction).toBe('credit');
+    expect(credit.amount).toBeCloseTo(885.7);
+    expect(credit.txn_date).toBe('2026-01-01');
+    expect(credit.narration).toContain('FREELANCE PROJECT');
+
+    const debit = rows[1];
+    expect(debit.direction).toBe('debit');
+    expect(debit.amount).toBeCloseTo(181.63);
+    expect(debit.balance_after).toBeCloseTo(85704.07);
+  });
+});
